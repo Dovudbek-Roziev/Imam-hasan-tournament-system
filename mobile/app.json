@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Имам Хасан · Турнир",
+    "slug": "imam-hasan-tournament",
+    "version": "1.0.0",
+    "description": "Матчи, турнирная таблица и статистика соревнования в Оше.",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FFFFFF",
+    "ios": {
+      "bundleIdentifier": "uz.roz1ev.imamhasan",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "uz.roz1ev.imamhasan",
+      "adaptiveIcon": {
+        "backgroundColor": "#056839",
+        "foregroundImage": "./assets/club-logo.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/icon.png"
+    }
+  }
+}
