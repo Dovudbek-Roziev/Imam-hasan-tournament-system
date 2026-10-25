@@ -10,7 +10,8 @@ const savedToken = () => { try { return sessionStorage.getItem(TOKEN_KEY); } cat
 
 const instance = axios.create({
   baseURL: import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:5000/api'),
-  timeout: 12000,
+  // Render's free instance may need time to wake before it can answer requests.
+  timeout: 90000,
   headers: { Accept: 'application/json' },
 });
 
