@@ -59,13 +59,26 @@ function teamInput(body) {
     return data;
 }
 
-// RU: Исключить ручное изменение голов, передач и карточек игрока.
-// EN: Exclude manual changes to player goal, assist, and card totals.
+// RU: Принять только безопасную ссылку на загруженную или внешнюю фотографию.
+// EN: Accept only a safe URL for an uploaded or external player photo.
+function imageReference(value) {
+    const reference = text(value);
+    if (!reference || /^\/api\/media\/[a-f\d]{24}$/i.test(reference)) return reference;
+    try {
+        const url = new URL(reference);
+        if (['http:', 'https:'].includes(url.protocol) && !url.username && !url.password) return reference;
+    } catch { /* RU: Ниже возвращается единая ошибка ссылки. EN: Return one consistent URL error below. */ }
+    throw new AppError(400, 'Укажите корректную ссылку на фотографию игрока.', 'INVALID_IMAGE_URL');
+}
+
+// RU: Исключить ручное изменение статистики игрока, разрешив обновлять фотографию.
+// EN: Prevent manual player-stat edits while allowing the photo to be updated.
 function playerInput(body) {
-    const data = fields(body, ['name', 'team', 'number']);
+    const data = fields(body, ['name', 'team', 'number', 'photo']);
     if ('name' in data) data.name = text(data.name);
     if ('team' in data) data.team = objectId(data.team);
     if ('number' in data && data.number !== null) integer(data.number, 1, 99);
+    if ('photo' in data) data.photo = imageReference(data.photo);
     return data;
 }
 

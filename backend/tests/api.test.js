@@ -188,6 +188,18 @@ test('Логотип: доступ администратора, проверк�
         name: 'Команда с логотипом', logo: uploaded.data.path,
     } });
     assert.equal(team.response.status, 201);
+    const player = await request('/api/players', { method: 'POST', bearer: token, body: {
+        name: 'Игрок с фотографией', team: team.body.data._id, photo: uploaded.data.path,
+    } });
+    assert.equal(player.response.status, 201);
+    assert.equal(player.body.data.photo, uploaded.data.path);
+    const listedPlayers = await request(`/api/players?team=${team.body.data._id}&limit=100`);
+    assert.equal(listedPlayers.body.data.find(item => item._id === player.body.data._id).photo, uploaded.data.path);
+    const invalidPhoto = await request('/api/players', { method: 'POST', bearer: token, body: {
+        name: 'Небезопасная фотография', team: team.body.data._id, photo: 'javascript:alert(1)',
+    } });
+    assert.equal(invalidPhoto.response.status, 400);
+    assert.equal(invalidPhoto.body.code, 'INVALID_IMAGE_URL');
     const protectedDelete = await request(uploaded.data.path, { method: 'DELETE', bearer: token,
         headers: { 'Accept-Language': 'ky;q=0.9,ru;q=0.8' },
     });
@@ -198,11 +210,21 @@ test('Логотип: доступ администратора, проверк�
         body: { name: team.body.data.name, logo: '' },
     });
     assert.equal(detached.response.status, 200);
+    const protectedPlayerPhoto = await request(uploaded.data.path, { method: 'DELETE', bearer: token,
+        headers: { 'Accept-Language': 'ky;q=0.9,ru;q=0.8' },
+    });
+    assert.equal(protectedPlayerPhoto.response.status, 409);
+    assert.equal(protectedPlayerPhoto.body.message, 'Оюнчу колдонуп жаткан сүрөттү өчүрүүгө болбойт.');
+    const detachedPlayer = await request(`/api/players/${player.body.data._id}`, { method: 'PUT', bearer: token,
+        body: { photo: '' },
+    });
+    assert.equal(detachedPlayer.response.status, 200);
     const deleted = await request(uploaded.data.path, { method: 'DELETE', bearer: token,
         headers: { 'Accept-Language': 'ky;q=0.9,ru;q=0.8' },
     });
     assert.equal(deleted.response.status, 200);
     assert.equal(deleted.body.message, 'Сүрөт өчүрүлдү.');
+    await request(`/api/players/${player.body.data._id}`, { method: 'DELETE', bearer: token });
     await request(`/api/teams/${team.body.data._id}`, { method: 'DELETE', bearer: token });
     assert.equal(await Media.countDocuments({ _id: uploaded.data.path.split('/').at(-1) }), 0);
 });

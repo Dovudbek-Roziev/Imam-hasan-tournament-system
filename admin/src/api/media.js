@@ -16,8 +16,8 @@ export async function uploadImage(file) {
   return response.data.data.path;
 }
 
-// RU: Удалить собственное изображение только после успешного сохранения команды.
-// EN: Delete an owned image only after its team update succeeds.
+// RU: Удалить старое изображение только после успешного сохранения профиля.
+// EN: Delete the old image only after the profile update succeeds.
 export async function deleteImage(path) {
   const match = /^\/api\/media\/([a-f\d]{24})$/i.exec(path || '');
   if (match) await api.delete(`/media/${match[1]}`);

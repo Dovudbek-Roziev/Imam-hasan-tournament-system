@@ -53,17 +53,23 @@ export default function Dashboard() {
 
   // RU: Скачать экспорт истории турнира из административного API.
   // EN: Download the tournament history export from the admin API.
-  // RU: Скачать согласованный JSON-архив истории турнира.
-  // EN: Download the consistent JSON archive of tournament history.
-  async function downloadArchive() {
+  // RU: Сформировать и скачать читаемый PDF-отчёт по архиву турнира.
+  // EN: Generate and download a readable PDF report from the tournament archive.
+  async function downloadPdfReport() {
     setDownloading(true); setError('');
     try {
-      const response = await api.get('/stats/archive', { responseType: 'blob' });
-      const url = URL.createObjectURL(response.data);
-      const link = document.createElement('a');
-      link.href = url; link.download = 'imam-hasan-archive.json'; link.click();
-      URL.revokeObjectURL(url); setSuccess(t('Архив турнира скачан.'));
-    } catch (failure) { setError(failure.response?.data?.message || t('Не удалось скачать архив турнира.')); }
+      const response = await api.get('/stats/archive');
+      const archive = response.data?.data;
+      if (!archive || !Array.isArray(archive.teams) || !Array.isArray(archive.matches)) throw new Error('Не удалось подготовить архив турнира.');
+      const [{ default: pdfMake }, { default: pdfFonts }, { buildTournamentPdfDefinition }] = await Promise.all([
+        import('pdfmake/build/pdfmake'),
+        import('pdfmake/build/vfs_fonts'),
+        import('../utils/tournamentPdf'),
+      ]);
+      pdfMake.vfs = pdfFonts;
+      pdfMake.createPdf(buildTournamentPdfDefinition(archive)).download('imam-hasan-archive.pdf');
+      setSuccess(t('PDF-отчёт турнира скачан.'));
+    } catch (failure) { setError(failure.response?.data?.message || t('Не удалось подготовить PDF-отчёт.')); }
     finally { setDownloading(false); }
   }
 
@@ -75,7 +81,7 @@ export default function Dashboard() {
   ] : [];
 
   return <section className="page-stack">
-    <div className="page-heading dashboard-heading"><div><span className="eyebrow">{t('СЕЗОН • ОШ, КЫРГЫЗСТАН')}</span><h1>{t('Обзор турнира')}</h1><p>{t('Все главные события и показатели в одном месте.')}</p></div><div className="heading-actions"><button className="button button-secondary" onClick={downloadArchive} disabled={downloading}><ArrowDownToLine size={17} />{downloading ? t('Готовим архив…') : t('Скачать архив')}</button><span className="time-pill"><span className="live-dot" />{data?.timeZone || 'Asia/Bishkek'} · UTC+6</span></div></div>
+    <div className="page-heading dashboard-heading"><div><span className="eyebrow">{t('СЕЗОН • ОШ, КЫРГЫЗСТАН')}</span><h1>{t('Обзор турнира')}</h1><p>{t('Все главные события и показатели в одном месте.')}</p></div><div className="heading-actions"><button className="button button-secondary" onClick={downloadPdfReport} disabled={downloading}><ArrowDownToLine size={17} />{downloading ? t('Готовим PDF…') : t('Скачать PDF-отчёт')}</button><span className="time-pill"><span className="live-dot" />{data?.timeZone || 'Asia/Bishkek'} · UTC+6</span></div></div>
     {error && <div className="notice notice-error" role="alert">{error}<button className="text-button" onClick={() => load(undefined, true)}>{t('Повторить')}</button></div>}
     {success && <div className="notice notice-success" role="status"><CheckCircle2 size={17} />{success}<button className="text-button" onClick={() => setSuccess('')}>×</button></div>}
     {loading && !data ? <div className="dashboard-loading"><LoaderCircle className="spin" size={22} />{t('Загружаем свежие данные…')}</div> : data && <>

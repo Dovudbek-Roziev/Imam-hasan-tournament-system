@@ -19,13 +19,15 @@ function getDevelopmentApiUrl() {
 // RU: Использовать явный адрес API или автоматически подключиться к backend на компьютере разработчика.
 // EN: Use the configured API URL or connect to the developer computer's backend automatically.
 const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim()
-    || (__DEV__ ? getDevelopmentApiUrl() : 'http://localhost:5000/api');
+    || (__DEV__ ? getDevelopmentApiUrl() : 'https://imam-hasan-api.onrender.com/api');
 
 // RU: Настройка Axios для подключения к Backend API
 // EN: Axios setup to connect to Backend API
 const instance = axios.create({
     baseURL: apiUrl,
-    timeout: 12000,
+    // RU: Дать бесплатному сервису Render время на запуск после периода простоя.
+    // EN: Allow Render's free service time to wake after an idle period.
+    timeout: 90000,
     headers: { Accept: 'application/json' },
 });
 

@@ -6,9 +6,9 @@ import { useLanguage } from '../i18n';
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
-// RU: Выбрать логотип устройства, проверить его и показать предварительный просмотр.
-// EN: Select a device image, validate it, and show a preview.
-export default function ImagePickerField({ value, onChange }) {
+// RU: Выбрать фотографию на устройстве, проверить её и показать предварительный просмотр.
+// EN: Select a device photo, validate it, and show a preview.
+export default function ImagePickerField({ value, onChange, variant = 'logo' }) {
   const { t } = useLanguage();
   const [preview, setPreview] = useState('');
   const [error, setError] = useState('');
@@ -37,7 +37,7 @@ export default function ImagePickerField({ value, onChange }) {
   const previewSource = isFile ? preview : value ? imageUrl(value) : '';
 
   return <div className="image-picker">
-    <span className="image-preview">{previewSource ? <img src={previewSource} alt={t('Предварительный просмотр логотипа')} /> : <ImagePlus size={24} />}</span>
+    <span className={`image-preview ${variant === 'avatar' ? 'image-preview-avatar' : ''}`}>{previewSource ? <img src={previewSource} alt={t('Предварительный просмотр изображения')} /> : <ImagePlus size={24} />}</span>
     <div className="image-picker-actions">
       <label className="button button-secondary image-picker-button"><ImagePlus size={16} />{t('Выбрать из галереи')}
         <input type="file" accept="image/jpeg,image/png,image/webp" onChange={selectFile} />

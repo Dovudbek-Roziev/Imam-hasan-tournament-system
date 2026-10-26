@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Image, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ArrowRight, CalendarDays, MapPin, Newspaper } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
 import api from '../api/axios';
@@ -69,26 +69,6 @@ export default function HomeScreen() {
                 </View>
             ) : <View style={styles.surface}><DataState error={error} emptyText="Предстоящих матчей пока нет" onRetry={error ? () => refresh() : undefined} /></View>}
 
-            <View style={styles.developerCard}>
-                <View style={styles.developerHeading}>
-                    <View style={styles.developerAvatar}><Text style={styles.developerInitials}>DR</Text></View>
-                    <View style={styles.developerIdentity}><Text style={styles.developerName}>Довудбек Розиев</Text><Text style={styles.developerRole}>{t('Full-Stack и мобильный разработчик')}</Text></View>
-                    <View style={styles.developerBadge}><Text style={styles.developerBadgeText}>{t('РАЗРАБОТКА')}</Text></View>
-                </View>
-                <Text style={styles.developerTitle}>{t('Нужен сайт, мобильное приложение или админ-панель?')}</Text>
-                <Text style={styles.developerMessage}>{t('Разработаю цифровой продукт под вашу задачу. Напишите мне — обсудим идею и детали.')}</Text>
-                <View style={styles.serviceChips}>
-                    <Text style={styles.serviceChip}>{t('Веб-сайты')}</Text>
-                    <Text style={styles.serviceChip}>{t('Мобильные приложения')}</Text>
-                    <Text style={styles.serviceChip}>{t('Админ-панели')}</Text>
-                </View>
-                <Pressable accessibilityRole="link" accessibilityLabel={t('Написать разработчику в Instagram')} style={styles.instagramButton} onPress={() => Linking.openURL('https://www.instagram.com/dovudbek.roz1ev/').catch(() => {})}>
-                    <View style={styles.instagramGlyph}><Text style={styles.instagramGlyphText}>IG</Text></View>
-                    <View style={styles.instagramCopy}><Text style={styles.instagramButtonTitle}>{t('Написать в Instagram')}</Text><Text style={styles.instagramHandle}>@dovudbek.roz1ev</Text></View>
-                    <ArrowRight size={17} color={COLORS.background} />
-                </Pressable>
-            </View>
-
             <View style={styles.sectionHeading}><Text style={styles.sectionTitle}>{t('Новости турнира')}</Text><Newspaper size={18} color={COLORS.primary} /></View>
             {error && match ? <View style={styles.surface}><DataState error={error} emptyText="" onRetry={() => refresh()} /></View> : null}
             {!news.length && !loading && !error ? <View style={styles.surface}><Text style={styles.emptyNews}>{t('Пока нет опубликованных новостей.')}</Text></View> : null}
@@ -150,23 +130,4 @@ const styles = StyleSheet.create({
     newsBody: { color: COLORS.textSecondary, fontSize: 12, lineHeight: 18, marginTop: 5 },
     newsDate: { color: COLORS.primary, fontSize: 10, fontWeight: '700', marginTop: 8 },
     emptyNews: { color: COLORS.textSecondary, textAlign: 'center', padding: 18, fontSize: 13 },
-    developerCard: { backgroundColor: '#F7FAF8', borderWidth: 1, borderColor: '#DCE9E0', borderRadius: 18, padding: 16, marginTop: 4, marginBottom: 22, overflow: 'hidden' },
-    developerHeading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-    developerAvatar: { width: 44, height: 44, borderRadius: 15, backgroundColor: COLORS.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 3, borderColor: '#E5F0E8' },
-    developerInitials: { color: COLORS.background, fontSize: 13, fontWeight: '900' },
-    developerIdentity: { flex: 1 },
-    developerName: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '800' },
-    developerRole: { color: COLORS.primary, fontSize: 10, fontWeight: '700', marginTop: 3 },
-    developerBadge: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 99, backgroundColor: '#EAF4ED' },
-    developerBadgeText: { color: COLORS.primary, fontSize: 8, fontWeight: '900', letterSpacing: .5 },
-    developerTitle: { color: COLORS.textPrimary, fontSize: 16, lineHeight: 22, fontWeight: '800', marginTop: 16 },
-    developerMessage: { color: COLORS.textSecondary, fontSize: 12, lineHeight: 18, marginTop: 6 },
-    serviceChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 12 },
-    serviceChip: { overflow: 'hidden', color: COLORS.primary, backgroundColor: '#EDF4EF', borderRadius: 99, paddingHorizontal: 9, paddingVertical: 6, fontSize: 9, fontWeight: '700' },
-    instagramButton: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14, paddingHorizontal: 12, borderRadius: 13, backgroundColor: COLORS.primary },
-    instagramGlyph: { width: 29, height: 29, borderRadius: 9, backgroundColor: 'rgba(255,255,255,.16)', alignItems: 'center', justifyContent: 'center' },
-    instagramGlyphText: { color: COLORS.background, fontSize: 9, fontWeight: '900' },
-    instagramCopy: { flex: 1 },
-    instagramButtonTitle: { color: COLORS.background, fontSize: 11, fontWeight: '800' },
-    instagramHandle: { color: '#D9E8DF', fontSize: 9, marginTop: 2 },
 });

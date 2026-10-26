@@ -1,5 +1,6 @@
 const Media = require('../models/Media');
 const Team = require('../models/Team');
+const Player = require('../models/Player');
 const AppError = require('../utils/AppError');
 
 const IMAGE_TYPES = new Map([
@@ -20,8 +21,8 @@ function inspectImage(req) {
     return { data, contentType };
 }
 
-// RU: Сохранить проверенное изображение и вернуть адрес для поля логотипа команды.
-// EN: Store a validated image and return the URL for a team logo field.
+// RU: Сохранить проверенное изображение и вернуть адрес для профиля команды или игрока.
+// EN: Store a validated image and return its URL for a team or player profile.
 exports.uploadImage = async (req, res, next) => {
     try {
         const image = inspectImage(req);
@@ -32,8 +33,8 @@ exports.uploadImage = async (req, res, next) => {
     }
 };
 
-// RU: Отдать публичный логотип с правильным MIME-типом и безопасным кэшированием.
-// EN: Serve a public logo with its correct MIME type and safe caching headers.
+// RU: Отдать публичное изображение с правильным MIME-типом и безопасным кэшированием.
+// EN: Serve a public image with its correct MIME type and safe caching headers.
 exports.getImage = async (req, res, next) => {
     try {
         if (!/^[a-f\d]{24}$/i.test(req.params.id)) throw new AppError(404, 'Изображение не найдено.', 'IMAGE_NOT_FOUND');
@@ -46,13 +47,14 @@ exports.getImage = async (req, res, next) => {
     }
 };
 
-// RU: Удалить неиспользуемое изображение, не нарушая ссылки команд.
-// EN: Delete an unused image without breaking team logo references.
+// RU: Удалить неиспользуемое изображение, не нарушая ссылки команд и игроков.
+// EN: Delete an unused image without breaking team or player references.
 exports.deleteImage = async (req, res, next) => {
     try {
         if (!/^[a-f\d]{24}$/i.test(req.params.id)) throw new AppError(404, 'Изображение не найдено.', 'IMAGE_NOT_FOUND');
         const path = `/api/media/${req.params.id}`;
         if (await Team.exists({ logo: path })) throw new AppError(409, 'Нельзя удалить логотип, используемый командой.', 'IMAGE_IN_USE');
+        if (await Player.exists({ photo: path })) throw new AppError(409, 'Нельзя удалить фотографию, используемую игроком.', 'IMAGE_IN_USE');
         const media = await Media.findByIdAndDelete(req.params.id);
         if (!media) throw new AppError(404, 'Изображение не найдено.', 'IMAGE_NOT_FOUND');
         res.json({ success: true, message: 'Изображение удалено.' });

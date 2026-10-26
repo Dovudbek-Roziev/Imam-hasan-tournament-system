@@ -27,7 +27,8 @@ const string = { type: 'string' };
 const status = { type: 'string', enum: Object.values(STATUS) };
 const eventType = { type: 'string', enum: Object.values(EVENT) };
 const teamFields = { name: { type: 'string', minLength: 1, maxLength: 100 }, logo: { type: 'string', maxLength: 2048, description: 'Пустая строка, HTTP/HTTPS URL без учётных данных или внутренний путь /api/media/{id}.' } };
-const playerFields = { name: teamFields.name, team: id, number: { type: ['integer', 'null'], minimum: 1, maximum: 99 } };
+const imageReference = { type: 'string', maxLength: 2048, description: 'Пустая строка, HTTP/HTTPS URL без учётных данных или внутренний путь /api/media/{id}.' };
+const playerFields = { name: teamFields.name, team: id, number: { type: ['integer', 'null'], minimum: 1, maximum: 99 }, photo: imageReference };
 const eventFields = { minute: { type: 'integer', minimum: 0, maximum: 180 }, player: id, type: eventType, assist: { anyOf: [id, { type: 'null' }] } };
 const matchFields = {
     homeTeam: id, awayTeam: id, homeScore: { type: 'integer', minimum: 0, maximum: 999 }, awayScore: { type: 'integer', minimum: 0, maximum: 999 },
@@ -52,7 +53,7 @@ const schemas = {
     Pagination: object({ page: { type: 'integer', minimum: 1 }, limit: { type: 'integer', minimum: 1, maximum: 100 },
         total: count, pages: count, hasNext: { type: 'boolean' } }, ['page', 'limit', 'total', 'pages', 'hasNext']),
     TeamSummary: object({ _id: id, name: string, logo: string }, ['_id', 'name']),
-    PlayerSummary: object({ _id: id, name: string, team: teamReference }, ['_id', 'name']),
+    PlayerSummary: object({ _id: id, name: string, photo: string, team: teamReference }, ['_id', 'name']),
     Team: object({ ...metadata, ...teamFields, ...teamStats }, ['_id', 'name', ...Object.keys(teamStats)]),
     Player: object({ ...metadata, ...playerFields, team: teamReference, ...playerStats }, ['_id', 'name', 'team', ...Object.keys(playerStats)]),
     EventInput: object(eventFields, ['minute', 'player', 'type'], false),
@@ -120,10 +121,10 @@ paths['/api/auth/login'] = { post: { operationId: 'login', summary: 'Вход', 
     responses: { 200: response(envelope(object({ token: string, expiresIn: count, user: ref('User') }, ['token', 'expiresIn', 'user']))), ...errors } } };
 paths['/api/auth/me'] = { get: { operationId: 'me', summary: 'Мой профиль', tags: ['Авторизация'], security, responses: { 200: response(envelope(ref('User'))), ...errors } } };
 paths['/api/auth/logout'] = { post: { operationId: 'logout', summary: 'Завершить все сеансы пользователя', tags: ['Авторизация'], security, responses: { 200: response(ref('Message')), ...errors } } };
-paths['/api/media'] = { post: { operationId: 'uploadTeamLogo', summary: 'Загрузить логотип команды', tags: ['Медиа'], security,
+paths['/api/media'] = { post: { operationId: 'uploadProfileImage', summary: 'Загрузить изображение команды или игрока', tags: ['Медиа'], security,
     requestBody: { required: true, content: Object.fromEntries(['image/jpeg', 'image/png', 'image/webp'].map(type => [type, { schema: { type: 'string', format: 'binary' } }])) },
     responses: { 201: response(envelope(object({ path: string }, ['path']))), ...errors } } };
-paths['/api/media/{id}'] = { parameters: [pathId], get: { operationId: 'getTeamLogo', summary: 'Получить изображение', tags: ['Медиа'],
+paths['/api/media/{id}'] = { parameters: [pathId], get: { operationId: 'getProfileImage', summary: 'Получить изображение команды или игрока', tags: ['Медиа'],
     responses: { 200: { description: 'Изображение команды', content: Object.fromEntries(['image/jpeg', 'image/png', 'image/webp'].map(type => [type, { schema: { type: 'string', format: 'binary' } }])) }, ...errors } },
     delete: { operationId: 'deleteTeamLogo', summary: 'Удалить неиспользуемое изображение', tags: ['Медиа'], security,
         responses: { 200: response(ref('Message')), ...errors } } };

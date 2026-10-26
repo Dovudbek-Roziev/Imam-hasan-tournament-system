@@ -19,6 +19,11 @@
         "foregroundImage": "./assets/club-logo.png"
       }
     },
+    "androidStatusBar": {
+      "barStyle": "light-content",
+      "backgroundColor": "#056839",
+      "translucent": false
+    },
     "web": {
       "favicon": "./assets/icon.png"
     }

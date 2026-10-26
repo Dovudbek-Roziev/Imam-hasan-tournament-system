@@ -2296,8 +2296,8 @@
     },
     "/api/media": {
       "post": {
-        "operationId": "uploadTeamLogo",
-        "summary": "Загрузить логотип команды",
+        "operationId": "uploadProfileImage",
+        "summary": "Загрузить изображение команды или игрока",
         "tags": [
           "Медиа"
         ],
@@ -2409,8 +2409,8 @@
         }
       ],
       "get": {
-        "operationId": "getTeamLogo",
-        "summary": "Получить изображение",
+        "operationId": "getProfileImage",
+        "summary": "Получить изображение команды или игрока",
         "tags": [
           "Медиа"
         ],
@@ -2776,6 +2776,9 @@
           "name": {
             "type": "string"
           },
+          "photo": {
+            "type": "string"
+          },
           "team": {
             "anyOf": [
               {
@@ -2917,6 +2920,11 @@
             ],
             "minimum": 1,
             "maximum": 99
+          },
+          "photo": {
+            "type": "string",
+            "maxLength": 2048,
+            "description": "Пустая строка, HTTP/HTTPS URL без учётных данных или внутренний путь /api/media/{id}."
           },
           "goals": {
             "type": "integer",
@@ -3304,6 +3312,11 @@
             ],
             "minimum": 1,
             "maximum": 99
+          },
+          "photo": {
+            "type": "string",
+            "maxLength": 2048,
+            "description": "Пустая строка, HTTP/HTTPS URL без учётных данных или внутренний путь /api/media/{id}."
           }
         },
         "required": [
@@ -3331,6 +3344,11 @@
             ],
             "minimum": 1,
             "maximum": 99
+          },
+          "photo": {
+            "type": "string",
+            "maxLength": 2048,
+            "description": "Пустая строка, HTTP/HTTPS URL без учётных данных или внутренний путь /api/media/{id}."
           }
         },
         "required": [],

@@ -6,6 +6,7 @@ import api from '../api/axios';
 import { readDataArray } from '../api/response';
 import { useLanguage } from '../i18n';
 import DataState from './DataState';
+import PlayerAvatar from './PlayerAvatar';
 
 // RU: Загрузить состав команды и показать её турнирные показатели.
 // EN: Load a team's roster and show its tournament standings.
@@ -37,7 +38,7 @@ export default function TeamDetailsModal({ team, onClose }) {
                 <Text style={styles.sectionTitle}>{t('Состав команды')}</Text>
                 {loading ? <ActivityIndicator color={COLORS.primary} style={styles.loader} /> : error ? <DataState error={error} emptyText="" onRetry={() => { setError(''); setLoading(true); setAttempt((value) => value + 1); }} /> : null}
                 {!loading && !error && !players.length ? <Text style={styles.empty}>{t('В команде пока нет игроков.')}</Text> : null}
-                {!error && players.map((player) => <View style={styles.player} key={player._id}><View style={styles.number}><Text style={styles.numberText}>{player.number ?? '—'}</Text></View><View style={styles.playerInfo}><Text style={styles.playerName}>{player.name}</Text><Text style={styles.playerStats}>{t('Голы')}: {player.goals} · {t('Ассисты')}: {player.assists}</Text></View><Shield color={COLORS.primary} size={16} /></View>)}
+                {!error && players.map((player) => <View style={styles.player} key={player._id}><PlayerAvatar player={player} size={38} /><View style={styles.number}><Text style={styles.numberText}>{player.number ?? '—'}</Text></View><View style={styles.playerInfo}><Text style={styles.playerName}>{player.name}</Text><Text style={styles.playerStats}>{t('Голы')}: {player.goals} · {t('Ассисты')}: {player.assists}</Text></View><Shield color={COLORS.primary} size={16} /></View>)}
             </ScrollView>
         </View></View>
     </Modal>;

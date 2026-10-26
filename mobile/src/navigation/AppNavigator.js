@@ -1,6 +1,6 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Home, Trophy, CalendarDays, BarChart2 } from 'lucide-react-native';
+import { Home, Trophy, CalendarDays, BarChart2, CodeXml } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -8,6 +8,7 @@ import HomeScreen from '../screens/HomeScreen';
 import TableScreen from '../screens/TableScreen';
 import MatchesScreen from '../screens/MatchesScreen';
 import StatsScreen from '../screens/StatsScreen';
+import DeveloperScreen from '../screens/DeveloperScreen';
 import { useLanguage } from '../i18n';
 
 const Tab = createBottomTabNavigator();
@@ -37,7 +38,7 @@ export default function AppNavigator() {
                     paddingTop: 6,
                     paddingBottom: Math.max(insets.bottom, 6),
                 },
-                tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
+                tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
                 sceneStyle: { backgroundColor: COLORS.background },
             }}
         >
@@ -71,6 +72,14 @@ export default function AppNavigator() {
                 options={{
                     title: t('Статистика'),
                     tabBarIcon: ({ color, size }) => <BarChart2 color={color} size={size} />
+                }}
+            />
+            <Tab.Screen
+                name="Developer"
+                component={DeveloperScreen}
+                options={{
+                    title: 'Автор',
+                    tabBarIcon: ({ color, size }) => <CodeXml color={color} size={size} />
                 }}
             />
         </Tab.Navigator>

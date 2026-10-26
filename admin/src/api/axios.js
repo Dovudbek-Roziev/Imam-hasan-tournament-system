@@ -9,7 +9,7 @@ export const TOKEN_KEY = 'imam-hasan.admin.token';
 const savedToken = () => { try { return sessionStorage.getItem(TOKEN_KEY); } catch { return null; } };
 
 const instance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:5000/api'),
+  baseURL: import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'https://imam-hasan-api.onrender.com/api'),
   // Render's free instance may need time to wake before it can answer requests.
   timeout: 90000,
   headers: { Accept: 'application/json' },

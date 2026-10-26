@@ -6,9 +6,23 @@ import api from '../api/axios';
 import { readDataArray } from '../api/response';
 import Loading from '../components/Loading';
 import DataState from '../components/DataState';
+import PlayerAvatar from '../components/PlayerAvatar';
 import useApiData from '../hooks/useApiData';
 import { useLanguage } from '../i18n';
 import LanguageToggle from '../components/LanguageToggle';
+
+// RU: Загрузить все страницы игроков, чтобы рейтинг карточек не обрезался после первой сотни.
+// EN: Fetch every player page so the cards leaderboard is not limited to the first hundred.
+async function loadAllPlayers(signal) {
+    const firstPage = await api.get('/players', { params: { limit: 100, page: 1, sort: 'name' }, signal });
+    const players = readDataArray(firstPage);
+    const pages = Math.max(1, Number(firstPage.data?.pagination?.pages) || 1);
+    if (pages === 1) return players;
+    const remaining = await Promise.all(Array.from({ length: pages - 1 }, (_, index) =>
+        api.get('/players', { params: { limit: 100, page: index + 2, sort: 'name' }, signal })
+    ));
+    return players.concat(...remaining.map(readDataArray));
+}
 
 // RU: Загрузить рейтинги голов, ассистов и карточек публичными маршрутами API.
 // EN: Fetch goal, assist, and card leaderboards from the public API routes.
@@ -16,9 +30,9 @@ async function loadStatistics(signal, locale = 'ru-RU') {
     const [scorers, assistants, players] = await Promise.all([
         api.get('/stats/top-scorers', { signal }),
         api.get('/stats/top-assists', { signal }),
-        api.get('/players', { params: { limit: 100, sort: 'name' }, signal }),
+        loadAllPlayers(signal),
     ]);
-    const cards = readDataArray(players)
+    const cards = players
         .filter((player) => (player.yellowCards || 0) + (player.redCards || 0) > 0)
         .sort((first, second) => ((second.yellowCards || 0) + (second.redCards || 0)) - ((first.yellowCards || 0) + (first.redCards || 0)) || first.name.localeCompare(second.name, locale));
     return { scorers: readDataArray(scorers), assistants: readDataArray(assistants), cards };
@@ -32,7 +46,7 @@ function StatisticRow({ player, rank, metric, t }) {
     return (
         <View style={styles.playerRow}>
             <Text style={[styles.rank, rank === 1 && styles.topRank]}>{String(rank).padStart(2, '0')}</Text>
-            <View style={styles.avatar}><Text style={styles.avatarText}>{(player.name || 'И').slice(0, 1).toUpperCase()}</Text></View>
+            <PlayerAvatar player={player} size={38} />
             <View style={styles.playerInfo}><Text style={styles.playerName} numberOfLines={1}>{player.name}</Text><Text style={styles.teamName} numberOfLines={1}>{player.team?.name || t('Команда не указана')}</Text></View>
             <View style={styles.valueWrap}><Text style={styles.value}>{value || 0}</Text>{metric === 'cards' ? <Text style={styles.cardBreakdown}>{t('Жёлтые:')} {player.yellowCards || 0} · {t('Красные:')} {player.redCards || 0}</Text> : null}</View>
         </View>
@@ -94,8 +108,6 @@ const styles = StyleSheet.create({
     playerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 67 },
     rank: { width: 24, color: COLORS.textSecondary, fontSize: 12, fontWeight: '800' },
     topRank: { color: COLORS.accent },
-    avatar: { width: 38, height: 38, borderRadius: 13, backgroundColor: '#EAF4ED', alignItems: 'center', justifyContent: 'center' },
-    avatarText: { color: COLORS.primary, fontSize: 16, fontWeight: '800' },
     playerInfo: { flex: 1 },
     playerName: { color: COLORS.textPrimary, fontSize: 13, fontWeight: '800' },
     teamName: { color: COLORS.textSecondary, fontSize: 10, marginTop: 3 },
