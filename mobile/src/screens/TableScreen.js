@@ -1,9 +1,9 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Award, TrendingUp } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
 import api from '../api/axios';
-import { readDataArray } from '../api/response';
+import { readDataArray, loadAllRecords } from '../api/response';
 import Loading from '../components/Loading';
 import DataState from '../components/DataState';
 import TeamDetailsModal from '../components/TeamDetailsModal';
@@ -15,8 +15,9 @@ import PlayoffBracket from '../components/PlayoffBracket';
 
 // RU: Загрузить стадии плей-офф для турнирной схемы.
 // EN: Load playoff fixtures for the tournament bracket.
-async function loadPlayoffMatches(signal) {
-    return readDataArray(await api.get('/matches', { params: { limit: 100, sort: 'date' }, signal }));
+async function loadTable(signal) {
+    const [table, matches] = await Promise.all([api.get('/stats/table', { signal }), loadAllRecords('/matches', { sort: 'date' }, signal)]);
+    return { teams: readDataArray(table), matches };
 }
 
 // RU: Загрузить полную турнирную таблицу с публичного API.
@@ -24,11 +25,9 @@ async function loadPlayoffMatches(signal) {
 export default function TableScreen() {
     const { t } = useLanguage();
     const [selectedTeam, setSelectedTeam] = useState(null);
-    const loadTable = useCallback(async (signal) => readDataArray(await api.get('/stats/table', { signal })), []);
-    const { data, loading, refreshing, error, refresh } = useApiData(loadTable);
-    const { data: matchData } = useApiData(loadPlayoffMatches);
-    const teams = Array.isArray(data) ? data : [];
-    const matches = Array.isArray(matchData) ? matchData : [];
+    const { data, loading, refreshing, error, refresh } = useApiData(loadTable, { teams: [], matches: [] });
+    const teams = data.teams;
+    const matches = data.matches;
 
     if (loading && !refreshing && !teams.length) return <Loading />;
 
@@ -89,3 +88,4 @@ const styles = StyleSheet.create({
     message: { marginTop: 12, borderRadius: 14, backgroundColor: COLORS.card },
     footnote: { color: COLORS.textSecondary, fontSize: 10, lineHeight: 16, marginTop: 12 },
 });
+

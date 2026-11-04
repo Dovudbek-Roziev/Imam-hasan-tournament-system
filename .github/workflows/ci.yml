@@ -26,7 +26,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version-file: .node-version
+          node-version-file: backend/.node-version
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
@@ -45,17 +45,18 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version-file: .node-version
+          node-version-file: backend/.node-version
           cache: npm
           cache-dependency-path: |
             admin/package-lock.json
             mobile/package-lock.json
       - name: Install and validate admin
         working-directory: admin
-        run: npm ci && npm run lint && npm run build
+        run: npm ci && npm run lint && npm test && npm run build
       - name: Install and lint mobile
         working-directory: mobile
-        run: npm ci && npx --yes oxlint@1.88.0 src App.js && npx expo-doctor
+        run: npm ci && npm test && npx --yes oxlint@1.88.0 src App.js && npx expo-doctor
       - name: Bundle Android JavaScript
         working-directory: mobile
         run: npx expo export --platform android --output-dir .expo/export
+

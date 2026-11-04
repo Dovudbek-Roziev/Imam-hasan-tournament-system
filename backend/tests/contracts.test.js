@@ -252,3 +252,16 @@ test('OpenAPI доступен без входа и соответствует �
     checkReferences(specification);
     assert.deepEqual(specification.components.schemas.MatchUpdate.required, ['version']);
 });
+
+
+// Search must compose with participant/status filters and escape regular expressions.
+test('Поиск матчей по командам и стадиону сохраняет остальные фильтры', async () => {
+    const team = await Team.findOne({ name: 'Ош' });
+    const search = encodeURIComponent('ОШ');
+    const found = await get(`/api/matches?search=${search}`);
+    assert.equal(found.status, 200);
+    assert.equal(found.body.pagination.total, 3);
+    assert.equal((await get(`/api/matches?search=${search}&status=finished&team=${team._id}`)).body.pagination.total, 1);
+    assert.equal((await get('/api/matches?search=.*')).body.pagination.total, 0);
+    assert.equal((await get('/api/matches?search=' + encodeURIComponent('Сулайман'))).body.pagination.total, 1);
+});

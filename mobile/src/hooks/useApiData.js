@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { getLanguage } from '../i18n';
 
 // RU: Загружать данные API, поддерживать повторный запрос и отменять устаревшие вызовы.
@@ -35,10 +36,11 @@ export default function useApiData(loader, initialData = []) {
         }
     }, [loader]);
 
-    useEffect(() => {
+    useFocusEffect(useCallback(() => {
         refresh();
         return () => request.current?.abort();
-    }, [refresh]);
+    }, [refresh]));
 
     return { data, loading, refreshing, error, refresh };
 }
+

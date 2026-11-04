@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import api from '../api/axios';
 import { useLanguage } from '../i18n';
+import { readAllPages } from '../api/pagination';
 
 // RU: Загружать одну страницу API и отменять устаревший запрос при смене фильтра.
 // EN: Load one API page and cancel stale requests when a filter changes.
 // RU: Загружать страницу списка с серверными поиском, фильтрами и отменой запросов.
 // EN: Load collection pages with server-side search, filters, and request cancellation.
-export function useCollection(resource, filters = {}) {
+export function useCollection(resource, filters = {}, { allPages = false } = {}) {
   const { language, t } = useLanguage();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -20,7 +21,7 @@ export function useCollection(resource, filters = {}) {
 
   useEffect(() => {
     const controller = new AbortController();
-    api.get(requestUrl, { signal: controller.signal })
+    (allPages ? readAllPages(api, `/${resource}`, params, controller.signal) : api.get(requestUrl, { signal: controller.signal }))
       .then(({ data }) => {
         const pagination = data?.pagination;
         if (!Array.isArray(data?.data) || !pagination ||
@@ -33,9 +34,9 @@ export function useCollection(resource, filters = {}) {
         if (!controller.signal.aborted) setState((current) => ({ ...current, loading: false, error: error.response?.data?.message || t('Не удалось загрузить данные. Проверьте подключение к серверу.'), key }));
       });
     return () => controller.abort();
-  }, [requestUrl, key, revision, language, t]);
+  }, [requestUrl, key, revision, language, t, allPages, params, resource]);
 
-  const refresh = useCallback(() => setRevision((value) => value + 1), []);
+  const refresh = useCallback(() => { setState(current => ({ ...current, loading: true, error: '' })); setRevision(value => value + 1); }, []);
   // RU: Обновить поиск и вернуться на первую страницу результатов.
   // EN: Update the search term and return to the first result page.
   function setSearchValue(value) { setSearch(value); setPage(1); }
@@ -47,3 +48,4 @@ export function useCollection(resource, filters = {}) {
   const { key: loadedKey, ...collection } = state;
   return { ...collection, loading: loadedKey !== key || state.loading, error: loadedKey === key ? state.error : '', page, search, setPage, setSearch: setSearchValue, filter, setFilter: setFilterValue, refresh };
 }
+

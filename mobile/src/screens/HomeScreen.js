@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Image, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { ArrowRight, CalendarDays, MapPin, Newspaper } from 'lucide-react-native';
+import { Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ArrowRight, CalendarDays, MapPin, Newspaper, X } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
 import api from '../api/axios';
 import { readDataArray } from '../api/response';
@@ -30,10 +30,11 @@ async function loadHome(signal) {
 export default function HomeScreen() {
     const { locale, language, t } = useLanguage();
     const { data, loading, refreshing, error, refresh } = useApiData(loadHome, { upcoming: [], news: [] });
+    const [selectedNews, setSelectedNews] = useState(null);
     const [now, setNow] = useState(Date.now());
     const upcoming = Array.isArray(data?.upcoming) ? data.upcoming : [];
     const news = Array.isArray(data?.news) ? data.news : [];
-    const match = upcoming[0];
+    const match = upcoming.find(item => new Date(item.startsAt).getTime() >= now);
 
     useEffect(() => {
         // RU: Обновлять таймер, не отправляя постоянные запросы на сервер.
@@ -45,7 +46,7 @@ export default function HomeScreen() {
     if (loading && !refreshing && !match && !news.length) return <Loading />;
 
     return (
-        <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => refresh(true)} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
+        <View style={{ flex: 1 }}><ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => refresh(true)} tintColor={COLORS.primary} colors={[COLORS.primary]} />}>
             <View style={styles.welcome}>
                 <View style={styles.welcomeText}><Text style={styles.kicker}>{t('ИМАМ ХАСАН · ФУТБОЛЬНЫЙ ТУРНИР')}</Text><Text style={styles.title}>{t('Следим за игрой')}</Text></View>
                 <View style={styles.headerActions}><LanguageToggle /><Image source={require('../../assets/club-logo.png')} style={styles.logo} accessibilityLabel={t('Эмблема турнира Имам Хасан')} /></View>
@@ -73,11 +74,11 @@ export default function HomeScreen() {
             {error && match ? <View style={styles.surface}><DataState error={error} emptyText="" onRetry={() => refresh()} /></View> : null}
             {!news.length && !loading && !error ? <View style={styles.surface}><Text style={styles.emptyNews}>{t('Пока нет опубликованных новостей.')}</Text></View> : null}
             {news.map((item) => (
-                <View style={styles.newsCard} key={item._id}>
+                <Pressable style={styles.newsCard} key={item._id} accessibilityRole="button" accessibilityLabel={language === 'ky' ? item.titleKy || item.title : item.title} onPress={() => setSelectedNews(item)}>
                     <View style={styles.newsMark}><Newspaper size={16} color={COLORS.primary} /></View>
                     <View style={styles.newsContent}><Text style={styles.newsTitle}>{language === 'ky' ? item.titleKy || item.title : item.title}</Text><Text style={styles.newsBody} numberOfLines={3}>{language === 'ky' ? item.contentKy || item.content : item.content}</Text><Text style={styles.newsDate}>{formatKickoff(item.date, false, locale)}</Text></View>
                     <ArrowRight size={16} color={COLORS.textSecondary} />
-                </View>
+                </Pressable>
             ))}
             <View style={styles.guide}>
                 <Text style={styles.guideTitle}>{t('Как пользоваться приложением')}</Text>
@@ -87,10 +88,23 @@ export default function HomeScreen() {
                 <Text style={styles.guideNote}>{t('Приложение предназначено для просмотра. Управление турниром доступно администратору в веб-панели.')}</Text>
             </View>
         </ScrollView>
+        <Modal visible={Boolean(selectedNews)} animationType="slide" transparent onRequestClose={() => setSelectedNews(null)}>
+            <View style={styles.newsBackdrop}><View style={styles.newsSheet}>
+                <View style={styles.sectionHeading}><Text style={styles.sectionTitle}>{t('Новости турнира')}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('Закрыть новость')} onPress={() => setSelectedNews(null)} style={styles.newsClose}><X size={22} color={COLORS.textPrimary} /></Pressable></View>
+                <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
+                    <Text style={styles.newsTitle}>{language === 'ky' ? selectedNews?.titleKy || selectedNews?.title : selectedNews?.title}</Text>
+                    <Text style={styles.newsDate}>{selectedNews ? formatKickoff(selectedNews.date, false, locale) : ''}</Text>
+                    <Text style={[styles.newsBody, { fontSize: 15, lineHeight: 24 }]}>{language === 'ky' ? selectedNews?.contentKy || selectedNews?.content : selectedNews?.content}</Text>
+                </ScrollView>
+            </View></View>
+        </Modal></View>
     );
 }
 
 const styles = StyleSheet.create({
+    newsBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,30,24,.38)' },
+    newsSheet: { maxHeight: '88%', backgroundColor: COLORS.background, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20 },
+    newsClose: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
     container: { flexGrow: 1, backgroundColor: COLORS.background, padding: 18, paddingBottom: 32 },
     welcome: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
     welcomeText: { flexShrink: 1, paddingRight: 8 },
@@ -131,3 +145,4 @@ const styles = StyleSheet.create({
     newsDate: { color: COLORS.primary, fontSize: 10, fontWeight: '700', marginTop: 8 },
     emptyNews: { color: COLORS.textSecondary, textAlign: 'center', padding: 18, fontSize: 13 },
 });
+

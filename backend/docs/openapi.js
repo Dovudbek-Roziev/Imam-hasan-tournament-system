@@ -91,7 +91,7 @@ function addResource(resource, schema, label) {
         query('sort', { type: 'string', enum: definition.sorts, default: definition.defaultSort }, 'Порядок сортировки; ID разрешает равенство.')];
     for (const filter of definition.filters) parameters.push(query(filter,
         filter === 'team' ? id : filter === 'status' ? status : filter === 'from' || filter === 'to' ? { type: 'string', format: 'date' } : { type: 'string', minLength: 1, maxLength: 100 },
-        { team: 'Команда игрока или любой участник матча', status: 'Статус матча', search: 'Буквальный поиск без учёта регистра по имени/заголовку', from: 'Первая календарная дата включительно', to: 'Последняя календарная дата включительно' }[filter]));
+        { team: 'Команда игрока или любой участник матча', status: 'Статус матча', search: 'Буквальный поиск без учёта регистра по имени/заголовку; для матчей — по командам и стадиону', from: 'Первая календарная дата включительно', to: 'Последняя календарная дата включительно' }[filter]));
     paths[`/api/${resource}`] = {
         get: { operationId: `list${schema}`, summary: `Список: ${label}`, tags: [label], parameters,
             responses: { 200: response(object({ success: { const: true }, data: { type: 'array', items: ref(schema) }, pagination: ref('Pagination') }, ['success', 'data', 'pagination'])), ...errors } },
@@ -140,3 +140,4 @@ module.exports = {
     servers: [{ url: '/', description: 'Текущий сервер' }], paths,
     components: { responses: { Error: errorResponse }, securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'JWT после входа. Административные операции требуют роли Администратор.' } }, schemas },
 };
+

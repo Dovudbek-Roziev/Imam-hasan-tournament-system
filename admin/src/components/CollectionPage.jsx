@@ -3,7 +3,7 @@ import { useLanguage } from '../i18n';
 
 // RU: Переиспользуемо отображать поиск, фильтры, состояние загрузки и страницы списка.
 // EN: Reuse the search, filters, loading state, and pagination for collection pages.
-export default function CollectionPage({ title, description, search, setSearch, page, setPage, pagination, loading, error, onRefresh, action, filter, setFilter, filterOptions, children }) {
+export default function CollectionPage({ title, description, search, setSearch, page, setPage, pagination, loading, error, refresh: onRefresh, action, filter, setFilter, filterOptions, children }) {
   const { t } = useLanguage();
   const hasRecords = (pagination?.total ?? 0) > 0;
   return <section className="page-stack">
@@ -20,3 +20,4 @@ export default function CollectionPage({ title, description, search, setSearch, 
     </div>
   </section>;
 }
+

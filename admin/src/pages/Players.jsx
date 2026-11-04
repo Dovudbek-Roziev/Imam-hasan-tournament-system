@@ -15,7 +15,7 @@ import { useLanguage } from '../i18n';
 export default function Players() {
   const { t } = useLanguage();
   const list = useCollection('players', { sort: 'name' });
-  const roster = useCollection('teams', { limit: 100, sort: 'name' });
+  const roster = useCollection('teams', { limit: 100, sort: 'name' }, { allPages: true });
   const [editing, setEditing] = useState(null);
   const [removing, setRemoving] = useState(null);
   const [notice, setNotice] = useState('');
@@ -60,3 +60,4 @@ export default function Players() {
     {removing && <ConfirmDialog title="Удалить игрока?" description={t('Удалить игрока «{name}»? Если игрок указан в протоколе матча, сервер сохранит историю и отклонит удаление.', { name: removing.name })} onClose={closeRemove} onConfirm={remove} />}
   </>;
 }
+

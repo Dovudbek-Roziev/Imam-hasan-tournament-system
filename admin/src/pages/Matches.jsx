@@ -40,8 +40,8 @@ function formatMatchDate(match, locale = 'ru-RU') {
 export default function Matches() {
   const { t, locale } = useLanguage();
   const list = useCollection('matches');
-  const teams = useCollection('teams', { limit: 100, sort: 'name' });
-  const players = useCollection('players', { limit: 100, sort: 'name' });
+  const teams = useCollection('teams', { limit: 100, sort: 'name' }, { allPages: true });
+  const players = useCollection('players', { limit: 100, sort: 'name' }, { allPages: true });
   const [editing, setEditing] = useState(null);
   const [removing, setRemoving] = useState(null);
   const [notice, setNotice] = useState('');
@@ -195,3 +195,4 @@ function MatchProtocol({ editing, players, locked, patch }) {
 function MatchFormSection({ title, description }) {
   return <div className="match-form-section"><strong>{title}</strong><span>{description}</span></div>;
 }
+

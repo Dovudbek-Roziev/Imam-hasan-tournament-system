@@ -6,7 +6,7 @@ const { STATUS, normalizeStatus } = require('../domain/matchRules');
 const definitions = Object.freeze({
     teams: { filters: ['search'], sorts: ['name', '-name', '-points'], defaultSort: 'name' },
     players: { filters: ['search', 'team'], sorts: ['name', '-name', 'number', '-goals', '-assists'], defaultSort: 'name' },
-    matches: { filters: ['team', 'status', 'from', 'to'], sorts: ['date', '-date'], defaultSort: 'date' },
+    matches: { filters: ['search', 'team', 'status', 'from', 'to'], sorts: ['date', '-date'], defaultSort: 'date' },
     news: { filters: ['search', 'from', 'to'], sorts: ['date', '-date', 'title'], defaultSort: '-date' },
 });
 
@@ -44,7 +44,7 @@ function parseListQuery(resource, query) {
     if (query.search !== undefined) {
         const search = query.search.trim();
         if (!search) invalidQuery();
-        filter[resource === 'news' ? 'title' : 'name'] = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+        filter[resource === 'news' ? 'title' : resource === 'matches' ? 'stadium' : 'name'] = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
     }
     if (query.team !== undefined) {
         const team = new mongoose.Types.ObjectId(objectId(query.team));
@@ -67,3 +67,4 @@ function parseListQuery(resource, query) {
 }
 
 module.exports = { definitions, parseListQuery };
+

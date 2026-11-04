@@ -35,7 +35,7 @@ export default function EntityDialog({ title, fields, initial, onClose, onSubmit
       {fields.map((field) => field.type === 'custom' ? <div className="custom-field" key={field.name}>{field.render({ values, update: createCustomFieldUpdater(field.name, (name, value) => update(name, value, field)) })}</div> : <label className={field.type === 'checkbox' ? 'checkbox-field' : 'field'} key={field.name}>
         {field.type !== 'checkbox' && <span>{t(field.label)}{field.required && <em> *</em>}</span>}
         {field.type === 'textarea' ? <textarea required={field.required} disabled={typeof field.disabled === 'function' ? field.disabled(values) : field.disabled} maxLength={field.maxLength} rows={field.rows || 4} value={values[field.name] ?? ''} placeholder={t(field.placeholder || '')} onChange={(event) => update(field.name, event.target.value, field)} />
-          : field.type === 'select' ? <select required={field.required} disabled={typeof field.disabled === 'function' ? field.disabled(values) : field.disabled} value={values[field.name] ?? ''} onChange={(event) => update(field.name, event.target.value)}><option value="" disabled>{t(field.placeholder || 'Выберите…')}</option>{(field.optionsFor?.(values) || field.options).map((option) => <option key={option.value} value={option.value}>{t(option.label)}</option>)}</select>
+          : field.type === 'select' ? <select required={field.required} disabled={typeof field.disabled === 'function' ? field.disabled(values) : field.disabled} value={values[field.name] ?? ''} onChange={(event) => update(field.name, event.target.value, field)}><option value="" disabled>{t(field.placeholder || 'Выберите…')}</option>{(field.optionsFor?.(values) || field.options).map((option) => <option key={option.value} value={option.value}>{t(option.label)}</option>)}</select>
             : field.type === 'checkbox' ? <><input type="checkbox" disabled={typeof field.disabled === 'function' ? field.disabled(values) : field.disabled} checked={Boolean(values[field.name])} onChange={(event) => update(field.name, event.target.checked, field)} /><span>{t(field.label)}</span></>
               : <input required={field.required} disabled={typeof field.disabled === 'function' ? field.disabled(values) : field.disabled} type={field.type || 'text'} min={field.min} max={field.max} maxLength={field.maxLength} step={field.step} value={values[field.name] ?? ''} placeholder={t(field.placeholder || '')} onChange={(event) => update(field.name, field.type === 'number' && event.target.value !== '' ? Number(event.target.value) : event.target.value, field)} />}
       </label>)}
@@ -44,3 +44,4 @@ export default function EntityDialog({ title, fields, initial, onClose, onSubmit
     </form>
   </Modal>;
 }
+
