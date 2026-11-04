@@ -42,6 +42,7 @@ export default function MatchDetailsModal({ match, onClose }) {
                 <Text style={styles.date}>{formatKickoff(details.startsAt || details.date, true, locale)}</Text>
                 <Text style={styles.stage}>{t(details.stage || 'Лига')} · {t(details.status)}</Text>
                 <View style={styles.scoreCard}><Text style={styles.team}>{details.homeTeam?.name || t('Команда')}</Text><Text style={styles.score}>{['Завершён', 'Идёт'].includes(details.status) ? `${details.homeScore} : ${details.awayScore}` : '— : —'}</Text><Text style={[styles.team, styles.away]}>{details.awayTeam?.name || t('Команда')}</Text></View>
+                {details.homePenaltyScore != null ? <Text style={styles.stage}>{t('пен.')}: {details.homePenaltyScore} : {details.awayPenaltyScore}</Text> : null}
                 <View style={styles.stadium}><MapPin size={15} color={COLORS.primary} /><Text style={styles.stadiumText}>{details.stadium || t('Основной стадион')}</Text></View>
                 <Text style={styles.sectionTitle}>{t('События')}</Text>
                 {loading ? <ActivityIndicator color={COLORS.primary} style={styles.loader} /> : error ? <DataState error={error} emptyText="" onRetry={() => { setError(''); setLoading(true); setAttempt((value) => value + 1); }} /> : null}
@@ -80,3 +81,4 @@ const styles = StyleSheet.create({
     eventTitle: { color: COLORS.textPrimary, fontSize: 12, fontWeight: '700' },
     eventPerson: { color: COLORS.textSecondary, fontSize: 11, marginTop: 3 },
 });
+

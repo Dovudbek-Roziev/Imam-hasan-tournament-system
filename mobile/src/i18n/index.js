@@ -3,6 +3,7 @@ import React, { createContext, useContext, useMemo, useState } from 'react';
 // RU: Переводы интерфейса мобильного приложения на кыргызский язык.
 // EN: Kyrgyz translations for the mobile application interface.
 const KY = {
+    'Закрыть новость': 'Жаңылыкты жабуу',
     'Главная': 'Башкы бет', 'Таблица': 'Жадыбал', 'Матчи': 'Беттештер', 'Статистика': 'Статистика',
     'Следим за игрой': 'Оюнду чогуу көрөлү', 'Как пользоваться приложением': 'Тиркемени кантип колдонуу керек',
     'Матчи — расписание и протоколы встреч': 'Беттештер — оюндардын жадыбалы жана протоколдору',
@@ -89,3 +90,4 @@ export function LanguageProvider({ children }) {
 export function useLanguage() {
     return useContext(LanguageContext);
 }
+

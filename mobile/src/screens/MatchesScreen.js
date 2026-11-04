@@ -2,8 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { CalendarDays, MapPin } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
-import api from '../api/axios';
-import { readDataArray } from '../api/response';
+import { loadAllRecords } from '../api/response';
 import Loading from '../components/Loading';
 import DataState from '../components/DataState';
 import MatchDetailsModal from '../components/MatchDetailsModal';
@@ -17,7 +16,7 @@ import { getGoalCreditedTeamName } from '../utils/matchEvents';
 // RU: Получить расписание с командами и протоколами событий матчей.
 // EN: Fetch the fixture list with teams and match event protocols.
 async function loadMatches(signal) {
-    return readDataArray(await api.get('/matches', { params: { sort: '-date', limit: 100 }, signal }));
+    return loadAllRecords('/matches', { sort: '-date' }, signal);
 }
 
 // RU: Отобразить результативную карточку отдельного матча.
@@ -115,3 +114,4 @@ const styles = StyleSheet.create({
     event: { color: COLORS.textPrimary, fontSize: 11 },
     eventMore: { color: COLORS.primary, fontSize: 10, fontWeight: '700' },
 });
+

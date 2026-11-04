@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Shield, X } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
-import api from '../api/axios';
-import { readDataArray } from '../api/response';
+import { loadAllRecords } from '../api/response';
 import { useLanguage } from '../i18n';
 import DataState from './DataState';
 import PlayerAvatar from './PlayerAvatar';
@@ -22,7 +21,7 @@ export default function TeamDetailsModal({ team, onClose }) {
     useEffect(() => {
         const controller = new AbortController();
         async function loadRoster() {
-            try { const response = await api.get('/players', { params: { team: team._id, limit: 100, sort: 'number' }, signal: controller.signal }); setPlayers(readDataArray(response)); }
+            try { const players = await loadAllRecords('/players', { team: team._id, sort: 'number' }, controller.signal); if (!controller.signal.aborted) setPlayers(players); }
             catch (failure) { if (!controller.signal.aborted) setError(failure.response?.data?.message || t('Не удалось загрузить состав команды.')); }
             finally { if (!controller.signal.aborted) setLoading(false); }
         }
@@ -65,3 +64,4 @@ const styles = StyleSheet.create({
     playerName: { color: COLORS.textPrimary, fontWeight: '700', fontSize: 13 },
     playerStats: { color: COLORS.textSecondary, fontSize: 10, marginTop: 3 },
 });
+

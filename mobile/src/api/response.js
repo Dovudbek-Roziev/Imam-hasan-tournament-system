@@ -1,4 +1,10 @@
 import { getLanguage } from '../i18n';
+import { readAllPages } from './pagination';
+import api from './axios';
+
+export async function loadAllRecords(resource, params, signal) {
+    return readDataArray(await readAllPages(api, resource, params, signal));
+}
 
 // RU: Безопасно получить список из стандартного конверта ответа API.
 // EN: Safely read a list from the standard API response envelope.
@@ -11,3 +17,4 @@ export function readDataArray(response) {
     error.name = 'ApiResponseError';
     throw error;
 }
+
