@@ -7,6 +7,7 @@ const { objectId } = require('../utils/input');
 const { authenticate, requireAdmin } = require('../middlewares/auth');
 const transaction = require('../services/tournamentTransaction');
 const { startsAt } = require('../domain/matchTime');
+const { advancePlayoffs } = require('../services/matchService');
 const { tournamentStats } = require('../services/tournamentRead');
 const router = express.Router();
 router.get('/', async (req, res, next) => {
@@ -29,6 +30,37 @@ router.post('/', authenticate, requireAdmin, async (req, res, next) => {
             const item = new Tournament({ name: name.trim(), teams: ids, format }); await item.save({ session }); return item;
         });
         res.status(201).json({ success: true, data: tournament });
+    } catch (error) { next(error); }
+});
+router.put('/:id', authenticate, requireAdmin, async (req, res, next) => {
+    try {
+        const id = objectId(req.params.id), name = req.body?.name;
+        if (typeof name !== 'string' || !name.trim() || name.trim().length > 120 || Object.keys(req.body).some(key => key !== 'name')) throw new AppError(400, 'Проверьте название турнира.', 'INVALID_TOURNAMENT');
+        await transaction(async session => { const tournament = await Tournament.findById(id).session(session); if (!tournament) throw new AppError(404, 'Турнир не найден.', 'TOURNAMENT_NOT_FOUND'); tournament.name = name.trim(); await tournament.save({ session }); });
+        res.json({ success: true });
+    } catch (error) { next(error); }
+});
+router.delete('/:id', authenticate, requireAdmin, async (req, res, next) => {
+    try {
+        const id = objectId(req.params.id);
+        await transaction(async session => { if (!await Tournament.exists({ _id: id }).session(session)) throw new AppError(404, 'Турнир не найден.', 'TOURNAMENT_NOT_FOUND'); if (await Match.exists({ tournament: id }).session(session)) throw new AppError(409, 'Нельзя удалить турнир с матчами.', 'TOURNAMENT_IN_USE'); await Tournament.deleteOne({ _id: id }, { session }); });
+        res.json({ success: true });
+    } catch (error) { next(error); }
+});
+router.post('/:id/complete-league', authenticate, requireAdmin, async (req, res, next) => {
+    try {
+        const id = objectId(req.params.id);
+        await transaction(async session => {
+            const tournament = await Tournament.findById(id).session(session);
+            if (!tournament) throw new AppError(404, 'Турнир не найден.', 'TOURNAMENT_NOT_FOUND');
+            if (tournament.format !== 'league_playoff' || tournament.teams.length < 4) throw new AppError(400, 'Для плей-офф нужны минимум четыре команды.', 'NOT_ENOUGH_PLAYOFF_TEAMS');
+            const unfinished = await Match.exists({ tournament: id, stage: 'Лига', status: { $nin: ['Завершён', 'Отменён', 'finished', 'cancelled'] } }).session(session);
+            const match = await Match.findOne({ tournament: id, stage: 'Лига', status: { $in: ['Завершён', 'finished'] } }).sort({ date: -1, time: -1 }).session(session);
+            if (unfinished || !match) throw new AppError(409, 'Сначала завершите все матчи лиги.', 'LEAGUE_NOT_COMPLETE');
+            tournament.leagueReady = true; tournament.expectedLeagueMatches = 0; await tournament.save({ session });
+            await advancePlayoffs(match, session);
+        });
+        res.json({ success: true });
     } catch (error) { next(error); }
 });
 router.put('/:id/team', authenticate, requireAdmin, async (req, res, next) => {

@@ -133,6 +133,12 @@ async function advancePlayoffs(match, session) {
     if (normalizeStage(match.stage) === STAGE.LEAGUE) {
         if (await Match.exists({ ...filter, stage: STAGE.LEAGUE, status: { $nin: [STATUS.FINISHED, STATUS.CANCELLED, 'finished', 'cancelled'] } }).session(session)) return;
         if (await Match.exists({ ...filter, stage: { $in: [STAGE.SEMIFINAL, STAGE.FINAL, STAGE.THIRD_PLACE] } }).session(session)) return;
+        if (tournament.expectedLeagueMatches && await Match.countDocuments({ ...filter, stage: STAGE.LEAGUE }).session(session) < tournament.expectedLeagueMatches) return;
+        if (!tournament.leagueReady) {
+            const league = await Match.find({ ...filter, stage: STAGE.LEAGUE }).session(session).select('homeTeam awayTeam').lean();
+            const pairs = new Set(league.map(game => [String(game.homeTeam), String(game.awayTeam)].sort().join(':')));
+            if (pairs.size < tournament.teams.length * (tournament.teams.length - 1) / 2) return;
+        }
         const standings = (await tournamentStats(String(match.tournament), session)).teams.sort((a, b) => b.points - a.points || b.goalDifference - a.goalDifference || b.goalsFor - a.goalsFor || a.name.localeCompare(b.name));
         pairs = [[STAGE.SEMIFINAL, standings[0]._id, standings[3]._id], [STAGE.SEMIFINAL, standings[1]._id, standings[2]._id]];
     } else if (normalizeStage(match.stage) === STAGE.SEMIFINAL) {
@@ -245,5 +251,5 @@ async function deleteMatch(id, version) {
     });
 }
 
-module.exports = { createMatch, updateMatch, deleteMatch, validateMatch, knockoutWinner, validatePlayoffStage };
+module.exports = { createMatch, updateMatch, deleteMatch, validateMatch, knockoutWinner, validatePlayoffStage, advancePlayoffs };
 

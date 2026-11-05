@@ -35,7 +35,7 @@ async function generateSchedule(input, timeZone) {
         const teams = await Team.countDocuments({ _id: { $in: input.teams } }).session(session);
         if (teams !== input.teams.length) throw new AppError(400, 'Одна из выбранных команд не существует.', 'INVALID_TEAMS');
         let tournament = null;
-        if (input.tournament) { tournament = await Tournament.findById(objectId(input.tournament)).session(session); if (!tournament || input.teams.some(id => !tournament.teams.some(team => String(team) === id))) throw new AppError(400, 'Выберите команды турнира.', 'INVALID_TEAMS'); }
+        if (input.tournament) { tournament = await Tournament.findById(objectId(input.tournament)).session(session); if (!tournament || input.teams.length !== tournament.teams.length || input.teams.some(id => !tournament.teams.some(team => String(team) === id))) throw new AppError(400, 'Выберите команды турнира.', 'INVALID_TEAMS'); }
         if (await Match.exists({ tournament: tournament?._id || null }).session(session)) throw new AppError(409, 'Автоматическое создание доступно только для пустого календаря.', 'SCHEDULE_EXISTS');
         const existing = await Match.find({ status: { $nin: ['Отменён', 'cancelled'] } }).session(session).lean();
         for (const fixture of fixtures) {
@@ -51,6 +51,7 @@ async function generateSchedule(input, timeZone) {
         const docs = fixtures.map(fixture => { const record = { ...fixture }; delete record.round; return new Match({ ...record, tournament: tournament?._id || null, timeZone }); });
         for (const doc of docs) await doc.validate();
         await Match.insertMany(docs, { session });
+        if (tournament) { tournament.leagueReady = true; tournament.expectedLeagueMatches = docs.length; await tournament.save({ session }); }
         return docs.length;
     });
 }

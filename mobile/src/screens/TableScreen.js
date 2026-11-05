@@ -12,6 +12,7 @@ import { useLanguage } from '../i18n';
 import TeamLogo from '../components/TeamLogo';
 import LanguageToggle from '../components/LanguageToggle';
 import PlayoffBracket from '../components/PlayoffBracket';
+import { getTournamentFormat } from '../tournaments/selection';
 
 // RU: Загрузить стадии плей-офф для турнирной схемы.
 // EN: Load playoff fixtures for the tournament bracket.
@@ -56,7 +57,7 @@ export default function TableScreen() {
             </ScrollView>
             {error ? <View style={styles.message}><DataState error={error} emptyText="" onRetry={() => refresh()} /></View> : null}
             <Text style={styles.footnote}>{t('И — матчи · В — победы · Н — ничьи · П — поражения · З-П — голы · О — очки')}</Text>
-            <PlayoffBracket teams={teams} matches={matches} t={t} />
+            {getTournamentFormat() === 'league_playoff' ? <PlayoffBracket teams={teams} matches={matches} t={t} /> : null}
         </ScrollView>{selectedTeam ? <TeamDetailsModal team={selectedTeam} onClose={() => setSelectedTeam(null)} /> : null}</View>
     );
 }

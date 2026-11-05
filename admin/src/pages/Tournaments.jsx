@@ -11,6 +11,7 @@ export default function Tournaments() {
   const [name, setName] = useState('');
   const [format, setFormat] = useState('league_playoff');
   const [participants, setParticipants] = useState([]);
+  const [newName, setNewName] = useState('');
   const [replacement, setReplacement] = useState({ from: '', to: '' });
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
@@ -25,9 +26,22 @@ export default function Tournaments() {
     try { await api.put(`/tournaments/${selected}/team`, replacement); await refresh(); setReplacement({ from: '', to: '' }); setMessage(t('Команда заменена.')); }
     catch (failure) { setMessage(failure.response?.data?.message || t('Не удалось сохранить данные.')); } finally { setBusy(false); }
   }
+  async function manage(action) {
+    const prompt = action === 'delete' ? t('Удалить этот пустой турнир?') : action === 'complete-league' ? t('Завершить лигу и создать плей-офф?') : '';
+    if (prompt && !window.confirm(prompt)) return;
+    setBusy(true); setMessage('');
+    try {
+      if (action === 'rename') { await api.put(`/tournaments/${selected}`, { name: newName }); setNewName(''); }
+      else if (action === 'delete') { await api.delete(`/tournaments/${selected}`); select('legacy'); }
+      else await api.post(`/tournaments/${selected}/complete-league`);
+      await refresh(); setMessage(t('Изменения сохранены.'));
+    } catch (failure) { setMessage(failure.response?.data?.message || t('Не удалось сохранить данные.')); }
+    finally { setBusy(false); }
+  }
   return <section className="page-stack"><div className="page-heading"><div><h1>{t('Турниры')}</h1><p>{t('Создавайте турниры и управляйте участниками.')}</p></div></div>
     {(message || error || teams.error) && <div className="notice notice-info" role="status">{message || error || teams.error}</div>}
     <div className="surface schedule-panel"><label className="field">{t('Выбранный турнир')}<select value={selected} onChange={e => select(e.target.value)}><option value="legacy">{t('Основной турнир')}</option>{tournaments.map(item => <option key={item._id} value={item._id}>{item.name}</option>)}</select></label>
+      {active && <div className="form-stack"><label className="field">{t('Новое название')}<input maxLength={120} value={newName} onChange={e => setNewName(e.target.value)} placeholder={active.name} /></label><div className="heading-actions"><button type="button" className="button button-secondary" disabled={busy || !newName.trim()} onClick={() => manage('rename')}>{t('Переименовать')}</button><button type="button" className="button button-secondary" disabled={busy} onClick={() => manage('delete')}>{t('Удалить пустой турнир')}</button>{active.format === 'league_playoff' && <button type="button" className="button button-secondary" disabled={busy} onClick={() => manage('complete-league')}>{t('Завершить лигу')}</button>}</div></div>}
       {active && <form onSubmit={replace} className="form-stack"><h2>{t('Заменить команду')}</h2><div className="schedule-fields"><label className="field">{t('Текущая команда')}<select required value={replacement.from} onChange={e => setReplacement(v => ({ ...v, from: e.target.value }))}><option value="">—</option>{active.teams.map(team => <option key={team._id} value={team._id}>{team.name}</option>)}</select></label><label className="field">{t('Новая команда')}<select required value={replacement.to} onChange={e => setReplacement(v => ({ ...v, to: e.target.value }))}><option value="">—</option>{teams.data.filter(team => !active.teams.some(item => item._id === team._id)).map(team => <option key={team._id} value={team._id}>{team.name}</option>)}</select></label></div><button className="button button-secondary" disabled={busy}>{t('Заменить команду')}</button></form>}
     </div>
     <form onSubmit={create} className="surface schedule-panel form-stack"><h2>{t('Создать турнир')}</h2><label className="field">{t('Название турнира')}<input required maxLength={120} value={name} onChange={e => setName(e.target.value)} /></label><label className="field">{t('Формат')}<select value={format} onChange={e => setFormat(e.target.value)}><option value="league">{t('Лига')}</option><option value="league_playoff">{t('Лига + плей-офф')}</option></select></label><b>{t('Команды турнира')}</b><div className="schedule-teams">{teams.data.map(team => <label key={team._id}><input type="checkbox" checked={participants.includes(team._id)} onChange={e => setParticipants(e.target.checked ? [...participants, team._id] : participants.filter(id => id !== team._id))} /> {team.name}</label>)}</div><button className="button button-primary" disabled={busy || participants.length < 2}>{t('Создать турнир')}</button></form>
