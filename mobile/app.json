@@ -26,6 +26,12 @@
     },
     "web": {
       "favicon": "./assets/icon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "57ae0dee-6b0c-4e46-9c1f-103f12db8022"
+      }
+    },
+    "owner": "ri.db"
   }
 }
