@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getLanguage } from '../i18n';
 
@@ -38,7 +39,12 @@ export default function useApiData(loader, initialData = []) {
 
     useFocusEffect(useCallback(() => {
         refresh();
-        return () => request.current?.abort();
+        let backgrounded = false;
+        const subscription = AppState.addEventListener('change', state => {
+            if (state === 'active' && backgrounded) { backgrounded = false; refresh(); }
+            else if (state === 'background' || state === 'inactive') backgrounded = true;
+        });
+        return () => { subscription.remove(); request.current?.abort(); };
     }, [refresh]));
 
     return { data, loading, refreshing, error, refresh };

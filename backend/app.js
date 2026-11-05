@@ -59,6 +59,7 @@ function createApp(config, options = {}) {
     app.locals.logger = options.logger || console;
     app.locals.isDatabaseReady = options.isDatabaseReady || (() => mongoose.connection.readyState === 1);
     app.disable('x-powered-by');
+    app.disable('etag');
     app.set('trust proxy', config.trustProxy);
     app.use(identifyRequest);
     app.use(installLanguage);
@@ -78,6 +79,11 @@ function createApp(config, options = {}) {
     app.use(express.json({ limit: '100kb' }));
     app.get('/health', health);
     app.get('/ready', readiness);
+    // Tournament data changes as results arrive; images use immutable URLs instead.
+    app.use('/api', (req, res, next) => {
+        if (req.method === 'GET' && !req.path.startsWith('/media/')) res.set('Cache-Control', 'no-store');
+        next();
+    });
     app.use('/api', rateLimit({
         windowMs: 60 * 1000, limit: 120,
         standardHeaders: 'draft-8', legacyHeaders: false,

@@ -125,7 +125,24 @@ test('Публичные списки и статистика доступны �
         const result = await request(path);
         assert.equal(result.response.status, 200, path);
         assert.ok(Array.isArray(result.body.data));
+        assert.equal(result.response.headers.get('cache-control'), 'no-store', path);
+        assert.equal(result.response.headers.get('etag'), null, path);
+        const conditional = await request(path, { headers: { 'If-None-Match': '"outdated"' } });
+        assert.equal(conditional.response.status, 200, path);
     }
+});
+
+test('public team data is fresh after an update even with a conditional request', async () => {
+    const team = await Team.create({ name: 'Cache freshness before' });
+    try {
+        const before = await request(`/api/teams/${team._id}`);
+        assert.equal(before.body.data.name, 'Cache freshness before');
+        await Team.updateOne({ _id: team._id }, { $set: { name: 'Cache freshness after' } });
+        const after = await request(`/api/teams/${team._id}`, { headers: { 'If-None-Match': '"outdated"' } });
+        assert.equal(after.response.status, 200);
+        assert.equal(after.body.data.name, 'Cache freshness after');
+        assert.equal(after.response.headers.get('cache-control'), 'no-store');
+    } finally { await Team.deleteOne({ _id: team._id }); }
 });
 
 // RU: Проверить публикацию русской новости с кыргызским переводом и совместимость старого формата.
@@ -181,6 +198,7 @@ test('Логотип: доступ администратора, проверк�
     const downloaded = await fetch(`${base}${uploaded.data.path}`);
     assert.equal(downloaded.status, 200);
     assert.equal(downloaded.headers.get('content-type'), 'image/png');
+    assert.match(downloaded.headers.get('cache-control'), /immutable/);
     assert.equal(downloaded.headers.get('x-content-type-options'), 'nosniff');
     assert.deepEqual(Buffer.from(await downloaded.arrayBuffer()), image);
 
@@ -410,3 +428,4 @@ test('Выход отзывает старые токены; новый вход
     assert.equal(loggedIn.response.status, 200);
     assert.equal((await request('/api/auth/me', { bearer: loggedIn.body.data.token })).response.status, 200);
 });
+

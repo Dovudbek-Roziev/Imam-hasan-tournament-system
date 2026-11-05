@@ -3,7 +3,7 @@ import { Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, 
 import { ArrowRight, CalendarDays, MapPin, Newspaper, X } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
 import api from '../api/axios';
-import { readDataArray } from '../api/response';
+import { readDataArray, loadAllRecords } from '../api/response';
 import Loading from '../components/Loading';
 import DataState from '../components/DataState';
 import useApiData from '../hooks/useApiData';
@@ -16,10 +16,10 @@ import LanguageToggle from '../components/LanguageToggle';
 // EN: Fetch upcoming scheduled matches and the latest tournament news.
 async function loadHome(signal) {
     const [matchesResponse, newsResponse] = await Promise.all([
-        api.get('/matches', { params: { status: 'Запланирован', sort: 'date', limit: 100 }, signal }),
+        loadAllRecords('/matches', { status: 'Запланирован', sort: 'date' }, signal),
         api.get('/news', { params: { sort: '-date', limit: 5 }, signal }),
     ]);
-    const upcoming = readDataArray(matchesResponse)
+    const upcoming = matchesResponse
         .filter((match) => match.startsAt && new Date(match.startsAt).getTime() >= Date.now())
         .sort((first, second) => new Date(first.startsAt) - new Date(second.startsAt));
     return { upcoming, news: readDataArray(newsResponse) };

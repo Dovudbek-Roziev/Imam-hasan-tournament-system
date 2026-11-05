@@ -4,7 +4,7 @@ export async function readAllPages(client, resource, params = {}, signal) {
     const records = [];
     let response;
     do {
-        signal?.throwIfAborted();
+        if (signal?.aborted) { const error = new Error('Request aborted'); error.name = 'AbortError'; throw error; }
         response = await client.get(resource, { params: { ...params, limit: 100, page }, signal });
         const { data, pagination } = response.data || {};
         if (!Array.isArray(data) || !pagination || pagination.page !== page ||

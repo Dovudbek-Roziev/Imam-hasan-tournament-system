@@ -24,3 +24,11 @@ test('rejects malformed pages and stops on cancellation', async () => {
     controller.abort();
     await assert.rejects(readAllPages({ get() { throw new Error('must not request'); } }, '/matches', {}, controller.signal), { name: 'AbortError' });
 });
+
+test('accepts an AbortSignal without throwIfAborted, as on some mobile runtimes', async () => {
+    const signal = { aborted: false };
+    const client = { get: async () => ({ data: { data: ['fixture'], pagination: { page: 1, pages: 1, hasNext: false } } }) };
+    assert.deepEqual((await readAllPages(client, '/matches', {}, signal)).data.data, ['fixture']);
+    signal.aborted = true;
+    await assert.rejects(readAllPages(client, '/matches', {}, signal), { name: 'AbortError' });
+});
