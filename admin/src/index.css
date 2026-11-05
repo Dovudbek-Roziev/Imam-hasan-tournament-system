@@ -449,3 +449,5 @@ a { color: inherit; }
 .inbox-compose { display: flex; align-items: end; gap: 10px; margin-top: 12px; }
 .inbox-compose textarea { flex: 1; min-width: 0; min-height: 70px; border: 1px solid #dfe8e1; border-radius: 12px; padding: 12px; resize: vertical; }
 @media (max-width: 700px) { .inbox-layout { grid-template-columns: 1fr; } .inbox-list { min-height: 0; max-height: 260px; overflow-y: auto; } .inbox-compose { flex-wrap: wrap; } }
+
+.schedule-form-fields { display: flex; flex-direction: column; gap: 14px; border: 0; margin: 0; padding: 0; min-width: 0; }
