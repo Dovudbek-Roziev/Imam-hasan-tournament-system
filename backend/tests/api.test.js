@@ -429,3 +429,36 @@ test('Выход отзывает старые токены; новый вход
     assert.equal((await request('/api/auth/me', { bearer: loggedIn.body.data.token })).response.status, 200);
 });
 
+
+test('HttpOnly refresh session restores access and logout revokes it', async () => {
+    const login = await request('/api/auth/login', { method: 'POST', body: credentials });
+    assert.equal(login.response.status, 200);
+    const setCookie = login.response.headers.get('set-cookie');
+    assert.match(setCookie, /HttpOnly/i);
+    assert.match(setCookie, /SameSite=Lax/i);
+    assert.match(setCookie, /Path=\/api\/auth/i);
+    const cookie = setCookie.split(';')[0];
+    const restored = await request('/api/auth/refresh', { method: 'POST', headers: { Cookie: cookie } });
+    assert.equal(restored.response.status, 200);
+    assert.equal(restored.body.data.user.role, 'Администратор');
+    assert.equal((await request('/api/auth/me', { bearer: restored.body.data.token })).response.status, 200);
+    assert.equal((await request('/api/auth/me', { bearer: cookie.split('=')[1] })).response.status, 401);
+    const ended = await request('/api/auth/logout', { method: 'POST', bearer: restored.body.data.token });
+    assert.equal(ended.response.status, 200);
+    assert.match(ended.response.headers.get('set-cookie'), /imam_refresh=;/);
+    assert.equal((await request('/api/auth/refresh', { method: 'POST', headers: { Cookie: cookie } })).response.status, 401);
+});
+
+test('production refresh cookies use Secure and cross-site settings', async () => {
+    const application = createApp({ ...config, nodeEnv: 'production' }, { logger: { error() {} } });
+    const listener = await listen(application);
+    try {
+        const result = await request('/api/auth/login', { method: 'POST', body: credentials, url: `http://127.0.0.1:${listener.address().port}` });
+        const cookie = result.response.headers.get('set-cookie');
+        assert.equal(result.response.status, 200);
+        assert.match(cookie, /HttpOnly/i);
+        assert.match(cookie, /Secure/i);
+        assert.match(cookie, /SameSite=None/i);
+        assert.match(cookie, /Partitioned/i);
+    } finally { listener.closeAllConnections(); await new Promise(resolve => listener.close(resolve)); }
+});

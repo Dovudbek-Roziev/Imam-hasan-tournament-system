@@ -2,7 +2,9 @@ const crypto = require('node:crypto');
 const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const { hashPassword, verifyPassword } = require('../services/passwordService');
-const { issueToken } = require('../services/tokenService');
+const { issueToken, issueRefreshToken, verifyRefreshToken, REFRESH_TTL_SECONDS } = require('../services/tokenService');
+const REFRESH_COOKIE = 'imam_refresh';
+function cookieOptions(config) { const production = config.nodeEnv === 'production'; return { httpOnly: true, secure: production, sameSite: production ? 'none' : 'lax', ...(production ? { partitioned: true } : {}), path: '/api/auth' }; }
 
 let dummyHashPromise;
 
@@ -31,6 +33,8 @@ async function login(req, res, next) {
             throw new AppError(401, 'Неверная электронная почта или пароль.', 'INVALID_CREDENTIALS');
         }
         res.set('Cache-Control', 'no-store');
+        if (user.role === 'Администратор') res.cookie(REFRESH_COOKIE, issueRefreshToken(user, req.app.locals.config), { ...cookieOptions(req.app.locals.config), maxAge: REFRESH_TTL_SECONDS * 1000 });
+        else res.clearCookie(REFRESH_COOKIE, cookieOptions(req.app.locals.config));
         return res.json({ success: true, data: {
             token: issueToken(user, req.app.locals.config),
             expiresIn: req.app.locals.config.jwtTtlSeconds,
@@ -39,6 +43,22 @@ async function login(req, res, next) {
     } catch (error) {
         return next(error);
     }
+}
+
+// Restore a short-lived API token from the administrator's HttpOnly cookie.
+async function refresh(req, res, next) {
+    const raw = req.headers.cookie?.split(';').map(part => part.trim()).find(part => part.startsWith(`${REFRESH_COOKIE}=`))?.slice(REFRESH_COOKIE.length + 1);
+    let payload;
+    try {
+        payload = verifyRefreshToken(raw, req.app.locals.config);
+        if (typeof payload !== 'object' || !/^[a-f\d]{24}$/i.test(payload.sub || '') || !Number.isInteger(payload.version) || payload.version < 0) throw new Error('Invalid claims');
+    } catch { return next(new AppError(401, 'Сеанс недействителен или истёк. Войдите снова.', 'INVALID_TOKEN')); }
+    try {
+        const user = await User.findById(payload.sub).select('+tokenVersion');
+        if (!user || !user.active || user.role !== 'Администратор' || user.tokenVersion !== payload.version) return next(new AppError(401, 'Сеанс недействителен или истёк. Войдите снова.', 'INVALID_TOKEN'));
+        res.set('Cache-Control', 'no-store');
+        return res.json({ success: true, data: { token: issueToken(user, req.app.locals.config), expiresIn: req.app.locals.config.jwtTtlSeconds, user: publicUser(user) } });
+    } catch (error) { return next(error); }
 }
 
 // RU: Вернуть профиль текущего авторизованного пользователя.
@@ -54,10 +74,12 @@ async function logout(req, res, next) {
     try {
         await User.updateOne({ _id: req.user._id }, { $inc: { tokenVersion: 1 } });
         res.set('Cache-Control', 'no-store');
+        res.clearCookie(REFRESH_COOKIE, cookieOptions(req.app.locals.config));
         res.json({ success: true, message: 'Вы вышли из системы на всех устройствах.' });
     } catch (error) {
         next(error);
     }
 }
 
-module.exports = { login, getMe, logout };
+module.exports = { login, refresh, getMe, logout };
+

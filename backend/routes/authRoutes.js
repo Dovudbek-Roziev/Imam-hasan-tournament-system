@@ -1,6 +1,6 @@
 const express = require('express');
 const { rateLimit } = require('express-rate-limit');
-const { login, getMe, logout } = require('../controllers/authController');
+const { login, refresh, getMe, logout } = require('../controllers/authController');
 const { authenticate } = require('../middlewares/auth');
 const AppError = require('../utils/AppError');
 
@@ -21,9 +21,11 @@ function createAuthRouter() {
         },
     });
     router.post('/login', loginLimiter, login);
+    router.post('/refresh', refresh);
     router.get('/me', authenticate, getMe);
     router.post('/logout', authenticate, logout);
     return router;
 }
 
 module.exports = createAuthRouter;
+

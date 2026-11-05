@@ -1,37 +1,51 @@
 import axios from 'axios';
 import { getLanguage } from '../i18n';
 
-// RU: Хранить токен только в текущей вкладке и передавать его серверу.
-// EN: Keep the token only in this browser tab and send it to the API.
 export const TOKEN_KEY = 'imam-hasan.admin.token';
-// RU: Безопасно получить токен из хранилища текущей вкладки.
-// EN: Safely read the token from the current tab's storage.
-const savedToken = () => { try { return sessionStorage.getItem(TOKEN_KEY); } catch { return null; } };
+let memoryToken = null;
+export function savedToken() { try { return sessionStorage.getItem(TOKEN_KEY) || memoryToken; } catch { return memoryToken; } }
+export function saveToken(token) { memoryToken = token; try { sessionStorage.setItem(TOKEN_KEY, token); } catch { /* Cookie-backed sessions work without tab storage. */ } }
+export function clearToken() { memoryToken = null; try { sessionStorage.removeItem(TOKEN_KEY); } catch { /* Storage may be unavailable. */ } }
 
 const instance = axios.create({
   baseURL: import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'https://imam-hasan-api.onrender.com/api'),
-  // Render's free instance may need time to wake before it can answer requests.
   timeout: 90000,
+  withCredentials: true,
   headers: { Accept: 'application/json' },
 });
-
-// RU: Добавить Bearer-токен к запросу, сохранив явный заголовок вызова.
-// EN: Attach the Bearer token while respecting an explicitly supplied header.
 instance.interceptors.request.use((request) => {
   if (!request.headers.Authorization && savedToken()) request.headers.Authorization = `Bearer ${savedToken()}`;
   request.headers['Accept-Language'] = getLanguage();
   return request;
 });
-
-// RU: Единообразно завершить сессию после ответа сервера 401.
-// EN: End the session consistently after the API responds with 401.
-instance.interceptors.response.use((response) => response, (error) => {
-  const hasSession = savedToken();
-  if (error.response?.status === 401 && hasSession) {
-    try { sessionStorage.removeItem(TOKEN_KEY); } catch { /* RU: Хранилище может быть выключено. EN: Storage may be unavailable. */ }
-    window.dispatchEvent(new CustomEvent('imam-hasan:unauthorized'));
+let pendingRefresh;
+export function refreshSession() {
+  if (!pendingRefresh) {
+    pendingRefresh = instance.post('/auth/refresh').then(({ data }) => {
+      if (!data?.data?.token || data.data.user?.role !== 'Администратор') throw new Error('Invalid session');
+      saveToken(data.data.token);
+      return data.data;
+    }).finally(() => { pendingRefresh = null; });
   }
-  return Promise.reject(error);
+  return pendingRefresh;
+}
+instance.interceptors.response.use((response) => response, async (error) => {
+  const request = error.config;
+  if (error.response?.status !== 401 || !request || request._sessionRetried ||
+      ['/auth/login', '/auth/refresh'].includes(request.url)) throw error;
+  request._sessionRetried = true;
+  try {
+    const current = savedToken();
+    const sent = request.headers?.Authorization;
+    const session = current && sent && sent !== `Bearer ${current}` ? { token: current } : await refreshSession();
+    request.headers.Authorization = `Bearer ${session.token}`;
+    return instance(request);
+  } catch (failure) {
+    if (failure.response?.status === 401 || failure.response?.status === 403) {
+      clearToken();
+      window.dispatchEvent(new CustomEvent('imam-hasan:unauthorized'));
+    }
+    throw failure;
+  }
 });
-
 export default instance;

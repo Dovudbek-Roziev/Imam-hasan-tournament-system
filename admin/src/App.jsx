@@ -21,6 +21,7 @@ function ProtectedPanel() {
   const auth = useAuth();
   const { t } = useLanguage();
   if (auth.status === 'checking') return <main className="boot-screen"><span className="brand-mark"><Trophy size={21} /></span><span className="spinner" />{t('Проверка безопасного соединения…')}</main>;
+  if (auth.status === 'unavailable') return <main className="boot-screen"><span className="brand-mark"><Trophy size={21} /></span><p>{t(auth.notice)}</p><button className="button button-primary" onClick={auth.retrySession}>{t('Повторить')}</button></main>;
   if (auth.status !== 'authenticated') return <Navigate to="/login" replace />;
   return <TournamentProvider><Layout><Routes><Route path="/" element={<Dashboard />} /><Route path="/teams" element={<Teams />} /><Route path="/players" element={<Players />} /><Route path="/tournaments" element={<Tournaments />} /><Route path="/matches" element={<Matches />} /><Route path="/messages" element={<Messages />} /><Route path="/news" element={<News />} /><Route path="*" element={<Navigate to="/" replace />} /></Routes></Layout></TournamentProvider>;
 }
@@ -29,7 +30,7 @@ function ProtectedPanel() {
 // EN: Choose the login screen or protected panel after verifying the token.
 function ApplicationRoutes() {
   const { status } = useAuth();
-  return <Routes><Route path="/login" element={status === 'authenticated' ? <Navigate to="/" replace /> : <Login />} /><Route path="*" element={<ProtectedPanel />} /></Routes>;
+  return <Routes><Route path="/login" element={status === 'authenticated' ? <Navigate to="/" replace /> : status === 'checking' || status === 'unavailable' ? <Navigate to="/" replace /> : <Login />} /><Route path="*" element={<ProtectedPanel />} /></Routes>;
 }
 
 // RU: Собрать маршруты и единое состояние авторизации.

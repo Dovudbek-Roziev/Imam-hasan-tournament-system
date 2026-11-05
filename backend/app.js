@@ -71,6 +71,7 @@ function createApp(config, options = {}) {
             if (!origin || config.allowedOrigins.includes(origin)) return callback(null, true);
             return callback(new AppError(403, 'Запросы с этого сайта не разрешены.', 'ORIGIN_NOT_ALLOWED'));
         },
+        credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
         allowedHeaders: ['Content-Type', 'Authorization', 'Accept-Language', 'X-Conversation-Token'],
         exposedHeaders: ['X-Request-Id'],

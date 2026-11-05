@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowDownToLine, ArrowUpRight, CalendarDays, CheckCircle2, CircleDot, Clock3, Flag, Goal, LoaderCircle, ShieldCheck, Users } from 'lucide-react';
 import api from '../api/axios';
 import { imageUrl } from '../api/media';
@@ -25,6 +25,7 @@ function readDashboard(response, t) {
 export default function Dashboard() {
   const { t, locale } = useLanguage();
   const { selected } = useTournament();
+  const selectedRef = useRef(selected);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -35,13 +36,15 @@ export default function Dashboard() {
   // EN: Reload tournament metrics on an administrator action.
   const load = useCallback(async (signal) => {
     setLoading(true); setError('');
-    try { const response = await api.get('/stats/dashboard', { signal, params: { tournament: selected } }); setData(readDashboard(response, t)); }
-    catch (failure) { if (!signal?.aborted) setError(failure.response?.data?.message || (failure.message === t('Сервер вернул обзор турнира в неожиданном формате.') ? failure.message : t('Не удалось загрузить обзор турнира.'))); }
-    finally { if (!signal?.aborted) setLoading(false); }
+    try { const response = await api.get('/stats/dashboard', { signal, params: { tournament: selected } }); if (!signal?.aborted && selectedRef.current === selected) setData(readDashboard(response, t)); }
+    catch (failure) { if (!signal?.aborted && selectedRef.current === selected) setError(failure.response?.data?.message || (failure.message === t('Сервер вернул обзор турнира в неожиданном формате.') ? failure.message : t('Не удалось загрузить обзор турнира.'))); }
+    finally { if (!signal?.aborted && selectedRef.current === selected) setLoading(false); }
   }, [t, selected]);
 
   useEffect(() => {
     const controller = new AbortController();
+    selectedRef.current = selected;
+    setLoading(true); setError(''); setData(null);
     // RU: Загрузить статистику с отменой запроса при закрытии страницы.
     // EN: Load dashboard data and cancel the request when the page closes.
     async function fetchDashboard() {
@@ -90,7 +93,7 @@ export default function Dashboard() {
       <div className="metrics-grid">{cards.map(({ label, value, note, icon: Icon, tone }) => <article className="metric-card surface" key={label}><div className="metric-top"><span>{label}</span><span className={`metric-icon ${tone}`}><Icon size={19} strokeWidth={1.8} /></span></div><strong>{value}</strong><span className="metric-note">{note}</span></article>)}</div>
       <div className="dashboard-grid">
         <section className="surface fixture-panel"><header className="section-header"><div><span className="eyebrow">{t('СЛЕДУЮЩИЕ ИГРЫ')}</span><h2>{t('Ближайшие матчи')}</h2></div><span className="counter-pill">{data.upcoming.length} {t('матча')}</span></header>
-          {data.upcoming.length ? <div className="fixture-list">{data.upcoming.map((match) => <article className="fixture-row" key={match._id}><div className="fixture-date"><span>{new Intl.DateTimeFormat(locale, { timeZone: data.timeZone, day: '2-digit' }).format(new Date(match.startsAt))}</span><small>{new Intl.DateTimeFormat(locale, { timeZone: data.timeZone, month: 'short' }).format(new Date(match.startsAt)).replace('.', '')}</small></div><div className="fixture-teams"><span><b>{match.homeTeam?.name || t('Команда')}</b><span className="team-mini">{match.homeTeam?.logo ? <img src={imageUrl(match.homeTeam.logo)} alt="" /> : 'ФК'}</span></span><i>—</i><span><b>{match.awayTeam?.name || t('Команда')}</b><span className="team-mini">{match.awayTeam?.logo ? <img src={imageUrl(match.awayTeam.logo)} alt="" /> : 'ФК'}</span></span></div><time dateTime={match.startsAt}>{new Intl.DateTimeFormat(locale, { timeZone: data.timeZone, hour: '2-digit', minute: '2-digit' }).format(new Date(match.startsAt))}</time></article>)}</div> : <div className="fixture-empty"><CalendarDays size={24} /><b>{t('Ближайших матчей пока нет')}</b><span>{t('Запланированные игры появятся здесь.')}</span></div>}
+          {data.upcoming.length ? <div className="fixture-list">{data.upcoming.map((match) => <article className="fixture-row" key={match._id}><div className="fixture-date"><span>{new Intl.DateTimeFormat(locale, { timeZone: data.timeZone, day: '2-digit' }).format(new Date(match.startsAt))}</span><small>{new Intl.DateTimeFormat(locale, { timeZone: data.timeZone, month: 'short' }).format(new Date(match.startsAt)).replace('.', '')}</small></div><div className="fixture-teams"><span><span className="team-mini">{match.homeTeam?.logo ? <img src={imageUrl(match.homeTeam.logo)} alt="" /> : 'ФК'}</span><b>{match.homeTeam?.name || t('Команда')}</b></span><span><span className="team-mini">{match.awayTeam?.logo ? <img src={imageUrl(match.awayTeam.logo)} alt="" /> : 'ФК'}</span><b>{match.awayTeam?.name || t('Команда')}</b></span></div><time dateTime={match.startsAt}>{new Intl.DateTimeFormat(locale, { timeZone: data.timeZone, hour: '2-digit', minute: '2-digit' }).format(new Date(match.startsAt))}</time></article>)}</div> : <div className="fixture-empty"><CalendarDays size={24} /><b>{t('Ближайших матчей пока нет')}</b><span>{t('Запланированные игры появятся здесь.')}</span></div>}
           <div className="fixtures-footnote"><Clock3 size={15} />{t('Время указано по городу Ош · UTC+6')}</div>
         </section>
         <section className="surface status-panel"><header className="section-header"><div><span className="eyebrow">{t('СТАТУС ТУРНИРА')}</span><h2>{t('Общая картина')}</h2></div><span className="status-icon"><CircleDot size={20} /></span></header><div className="status-feature"><span><CircleDot size={18} /></span><div><b>{t('Турнир активен')}</b><small>{t('Публичные результаты доступны зрителям')}</small></div></div><div className="status-line"><span>{t('Запланировано')}</span><b>{data.matches.scheduled}</b></div><div className="status-line"><span>{t('Сейчас играют')}</span><b>{data.matches.live}</b></div><div className="status-line"><span>{t('Завершено')}</span><b>{data.matches.finished}</b></div><div className="status-line"><span>{t('Новости турнира')}</span><b>{data.news}</b></div>{data.matches.incompleteProtocols > 0 && <div className="incomplete-note"><Clock3 size={15} />{t('Неполных протоколов:')} {data.matches.incompleteProtocols}</div>}</section>
