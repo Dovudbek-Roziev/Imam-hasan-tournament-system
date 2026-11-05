@@ -7,7 +7,7 @@ const archive = require('../services/archiveService');
 // EN: Download a tournament snapshot to preserve history before a future season.
 exports.getArchive = async (req, res, next) => {
     try {
-        const data = await archive.exportArchive(req.app.locals.config.timeZone);
+        const data = await archive.exportArchive(req.app.locals.config.timeZone, req.query.tournament);
         res.set('Cache-Control', 'no-store');
         res.attachment('imam-hasan-archive.json');
         res.json({ success: true, data });
@@ -19,7 +19,7 @@ exports.getArchive = async (req, res, next) => {
 exports.getDashboard = async (req, res, next) => {
     try {
         res.set('Cache-Control', 'no-store');
-        res.json({ success: true, data: await dashboard.getDashboard(req.app.locals.config.timeZone) });
+        res.json({ success: true, data: await dashboard.getDashboard(req.app.locals.config.timeZone, new Date(), req.query.tournament) });
     } catch (error) { next(error); }
 };
 
@@ -55,3 +55,4 @@ exports.getTopAssists = async (req, res, next) => {
         next(error);
     }
 };
+

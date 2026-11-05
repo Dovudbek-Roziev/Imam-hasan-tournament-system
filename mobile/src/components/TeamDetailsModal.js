@@ -3,6 +3,9 @@ import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View
 import { Shield, X } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
 import { loadAllRecords } from '../api/response';
+import api from '../api/axios';
+import { readDataArray } from '../api/response';
+import { getTournament } from '../tournaments/selection';
 import { useLanguage } from '../i18n';
 import DataState from './DataState';
 import PlayerAvatar from './PlayerAvatar';
@@ -21,7 +24,7 @@ export default function TeamDetailsModal({ team, onClose }) {
     useEffect(() => {
         const controller = new AbortController();
         async function loadRoster() {
-            try { const players = await loadAllRecords('/players', { team: team._id, sort: 'number' }, controller.signal); if (!controller.signal.aborted) setPlayers(players); }
+            try { const tournament = getTournament(); const players = tournament === 'legacy' ? await loadAllRecords('/players', { team: team._id, sort: 'number' }, controller.signal) : readDataArray(await api.get(`/tournaments/${tournament}/players`, { signal: controller.signal })).filter(player => player.team?._id === team._id).sort((a, b) => (a.number ?? 999) - (b.number ?? 999)); if (!controller.signal.aborted) setPlayers(players); }
             catch (failure) { if (!controller.signal.aborted) setError(failure.response?.data?.message || t('Не удалось загрузить состав команды.')); }
             finally { if (!controller.signal.aborted) setLoading(false); }
         }

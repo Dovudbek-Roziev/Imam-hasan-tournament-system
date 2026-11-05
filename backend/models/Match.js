@@ -15,6 +15,7 @@ const eventSchema = new mongoose.Schema({
 // RU: Матч сохраняется вместе со статистикой через транзакционный сервис.
 // EN: A match is persisted with its statistics through the transactional service.
 const matchSchema = new mongoose.Schema({
+    tournament: { type: mongoose.Schema.Types.ObjectId, ref: 'Tournament', default: null, index: true },
     homeTeam: { type: mongoose.Schema.Types.ObjectId, ref: 'Team', required: [true, 'Выберите хозяев.'] },
     awayTeam: { type: mongoose.Schema.Types.ObjectId, ref: 'Team', required: [true, 'Выберите гостей.'] },
     homeScore: { type: Number, default: 0, min: 0, max: 999, validate: Number.isInteger },
@@ -23,6 +24,7 @@ const matchSchema = new mongoose.Schema({
     awayPenaltyScore: { type: Number, default: null, min: 0, max: 99, validate: value => value === null || Number.isInteger(value) },
     stage: { type: String, enum: Object.values(STAGE), set: normalizeStage, default: STAGE.LEAGUE },
     date: { type: Date, required: [true, 'Введите дату матча.'] },
+    duration: { type: Number, default: 90, min: 1, max: 720, validate: Number.isInteger },
     time: { type: String, required: [true, 'Введите время матча.'], match: /^([01]\d|2[0-3]):[0-5]\d$/ },
     timeZone: { type: String, default: DEFAULT_TIME_ZONE, validate: validTimeZone },
     stadium: { type: String, trim: true, maxlength: 150, default: 'Основной стадион' },
@@ -65,3 +67,4 @@ matchSchema.index({ 'events.player': 1 });
 matchSchema.index({ 'events.assist': 1 });
 
 module.exports = mongoose.model('Match', matchSchema);
+

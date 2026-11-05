@@ -92,6 +92,8 @@ function createApp(config, options = {}) {
     app.use('/api/teams', teamRoutes);
     app.use('/api/players', playerRoutes);
     app.use('/api/matches', matchRoutes);
+    app.use('/api/schedule', require('./routes/scheduleRoutes'));
+    app.use('/api/tournaments', require('./routes/tournamentRoutes'));
     app.use('/api/news', newsRoutes);
     app.use('/api/media', mediaRoutes);
     app.use('/api/stats', statsRoutes);
@@ -101,3 +103,4 @@ function createApp(config, options = {}) {
 }
 
 module.exports = createApp;
+

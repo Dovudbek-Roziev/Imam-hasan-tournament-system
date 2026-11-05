@@ -8,6 +8,7 @@ import Loading from '../components/Loading';
 import DataState from '../components/DataState';
 import PlayerAvatar from '../components/PlayerAvatar';
 import useApiData from '../hooks/useApiData';
+import { getTournament } from '../tournaments/selection';
 import { useLanguage } from '../i18n';
 import LanguageToggle from '../components/LanguageToggle';
 
@@ -27,6 +28,12 @@ async function loadAllPlayers(signal) {
 // RU: Загрузить рейтинги голов, ассистов и карточек публичными маршрутами API.
 // EN: Fetch goal, assist, and card leaderboards from the public API routes.
 async function loadStatistics(signal, locale = 'ru-RU') {
+    const tournament = getTournament();
+    if (tournament !== 'legacy') {
+        const players = readDataArray(await api.get(`/tournaments/${tournament}/players`, { signal }));
+        const rank = key => players.filter(player => player[key] > 0).sort((a, b) => b[key] - a[key] || a.name.localeCompare(b.name, locale)).slice(0, 10);
+        return { scorers: rank('goals'), assistants: rank('assists'), cards: players.filter(player => player.yellowCards + player.redCards > 0).sort((a, b) => b.yellowCards + b.redCards - a.yellowCards - a.redCards || a.name.localeCompare(b.name, locale)) };
+    }
     const [scorers, assistants, players] = await Promise.all([
         api.get('/stats/top-scorers', { signal }),
         api.get('/stats/top-assists', { signal }),
@@ -116,3 +123,4 @@ const styles = StyleSheet.create({
     cardBreakdown: { color: COLORS.textSecondary, fontSize: 9, marginTop: 2 },
     separator: { height: 1, backgroundColor: COLORS.border, marginLeft: 34 },
 });
+

@@ -97,9 +97,10 @@ function eventInput(body) {
 // RU: Проверить поля матча и обязательную версию для защиты от устаревшей формы.
 // EN: Validate match fields and require a revision to protect against stale forms.
 function matchInput(body, update = false) {
-    const allowed = ['homeTeam', 'awayTeam', 'homeScore', 'awayScore', 'homePenaltyScore', 'awayPenaltyScore', 'stage', 'date', 'time', 'stadium', 'status', 'events', 'protocolComplete'];
+    const allowed = ['tournament', 'homeTeam', 'awayTeam', 'homeScore', 'awayScore', 'homePenaltyScore', 'awayPenaltyScore', 'stage', 'date', 'time', 'stadium', 'status', 'events', 'protocolComplete'];
     const data = fields(body, update ? [...allowed, 'version'] : allowed);
     if (update) integer(data.version);
+    if ('tournament' in data) { if (update) throw new AppError(400, 'Нельзя изменить турнир матча.', 'INVALID_TOURNAMENT'); data.tournament = objectId(data.tournament); }
     for (const key of ['homeTeam', 'awayTeam']) if (key in data) data[key] = objectId(data[key]);
     for (const key of ['homeScore', 'awayScore']) if (key in data) integer(data[key], 0, 999);
     for (const key of ['homePenaltyScore', 'awayPenaltyScore']) if (key in data && data[key] !== null) integer(data[key], 0, 99);
@@ -132,3 +133,4 @@ function newsInput(body) {
 }
 
 module.exports = { objectId, integer, calendarDate, teamInput, playerInput, matchInput, newsInput };
+

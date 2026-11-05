@@ -1,4 +1,6 @@
 const Team = require('../models/Team');
+const Tournament = require('../models/Tournament');
+const { tournamentStats } = require('./tournamentRead');
 const Player = require('../models/Player');
 const Match = require('../models/Match');
 const AppError = require('../utils/AppError');
@@ -6,7 +8,7 @@ const { objectId, integer, matchInput } = require('../utils/input');
 const { STATUS, EVENT, STAGE, normalizeStatus, normalizeEvent, normalizeStage } = require('../domain/matchRules');
 const transaction = require('./tournamentTransaction');
 const statistics = require('./statisticsService');
-const { DEFAULT_TIME_ZONE } = require('../domain/matchTime');
+const { DEFAULT_TIME_ZONE, startsAt } = require('../domain/matchTime');
 
 // RU: Определить победителя матча на выбывание с учётом серии пенальти.
 // EN: Resolve a knockout winner, including a penalty shootout when needed.
@@ -25,11 +27,12 @@ async function validatePlayoffStage(match, session) {
     const duplicateFilter = stage === STAGE.SEMIFINAL
         ? { stage, $or: [{ homeTeam: match.homeTeam, awayTeam: match.awayTeam }, { homeTeam: match.awayTeam, awayTeam: match.homeTeam }] }
         : { stage };
-    const duplicate = await Match.findOne({ ...duplicateFilter, ...(currentId ? { _id: { $ne: currentId } } : {}) }).session(session).select('_id');
+    const duplicate = await Match.findOne({ tournament: match.tournament || null, ...duplicateFilter, ...(currentId ? { _id: { $ne: currentId } } : {}) }).session(session).select('_id');
     if (duplicate) throw new AppError(409, 'Матч этого этапа уже создан.', 'PLAYOFF_STAGE_EXISTS');
 
     if (stage === STAGE.SEMIFINAL) {
         const unfinishedLeagueMatch = await Match.findOne({
+            tournament: match.tournament || null,
             $and: [
                 { $or: [{ stage: STAGE.LEAGUE }, { stage: { $exists: false } }] },
                 { status: { $nin: [STATUS.FINISHED, STATUS.CANCELLED, 'finished', 'cancelled'] } },
@@ -38,7 +41,7 @@ async function validatePlayoffStage(match, session) {
         }).session(session).select('_id');
         if (unfinishedLeagueMatch) throw new AppError(409, 'Сначала завершите все матчи лиги.', 'LEAGUE_NOT_COMPLETE');
 
-        const rankedTeams = await Team.find().sort({ points: -1, goalDifference: -1, goalsFor: -1, name: 1, _id: 1 }).session(session).limit(4).lean();
+        const rankedTeams = match.tournament ? (await tournamentStats(String(match.tournament), session)).teams.sort((a, b) => b.points - a.points || b.goalDifference - a.goalDifference || b.goalsFor - a.goalsFor || a.name.localeCompare(b.name)).slice(0, 4) : await Team.find().sort({ points: -1, goalDifference: -1, goalsFor: -1, name: 1, _id: 1 }).session(session).limit(4).lean();
         if (rankedTeams.length < 4) throw new AppError(409, 'Для полуфинала нужны как минимум четыре команды.', 'NOT_ENOUGH_PLAYOFF_TEAMS');
         const pairs = [[rankedTeams[0], rankedTeams[3]], [rankedTeams[1], rankedTeams[2]]];
         const validPair = pairs.some(([first, second]) =>
@@ -48,7 +51,7 @@ async function validatePlayoffStage(match, session) {
         return;
     }
 
-    const semifinals = await Match.find({ stage: STAGE.SEMIFINAL, status: { $in: [STATUS.FINISHED, 'finished'] } }).session(session).lean();
+    const semifinals = await Match.find({ tournament: match.tournament || null, stage: STAGE.SEMIFINAL, status: { $in: [STATUS.FINISHED, 'finished'] } }).session(session).lean();
     if (semifinals.length !== 2) throw new AppError(409, 'Сначала завершите оба полуфинала.', 'SEMIFINALS_NOT_COMPLETE');
     const winners = semifinals.map(knockoutWinner);
     if (winners.some((winner) => !winner) || new Set(winners).size !== 2) {
@@ -71,6 +74,20 @@ async function validateMatch(match, session) {
     }
     const teams = await Team.find({ _id: { $in: [match.homeTeam, match.awayTeam] } }).session(session).select('_id');
     if (teams.length !== 2) throw new AppError(400, 'Одна из выбранных команд не существует.', 'INVALID_TEAMS');
+    if (match.tournament) { const tournament = await Tournament.findById(match.tournament).session(session); if (!tournament || ![match.homeTeam, match.awayTeam].every(id => tournament.teams.some(team => String(team) === String(id)))) throw new AppError(400, 'Выберите команды турнира.', 'INVALID_TEAMS'); }
+    if (match.tournament && normalizeStatus(match.status) !== STATUS.CANCELLED) {
+        const start = new Date(startsAt(match.date, match.time, match.timeZone)).getTime();
+        if (Number.isFinite(start)) {
+            const others = await Match.find({ _id: { $ne: match._id }, status: { $nin: [STATUS.CANCELLED, 'cancelled'] }, $or: [
+                { homeTeam: { $in: [match.homeTeam, match.awayTeam] } }, { awayTeam: { $in: [match.homeTeam, match.awayTeam] } }, { stadium: match.stadium },
+            ] }).session(session).lean();
+            const conflict = others.some(other => {
+                const otherStart = new Date(startsAt(other.date, other.time, other.timeZone)).getTime();
+                return start < otherStart + (other.duration || 90) * 60000 && otherStart < start + (match.duration || 90) * 60000;
+            });
+            if (conflict) throw new AppError(409, 'Время пересекается с другим матчем команды или стадиона.', 'SCHEDULE_CONFLICT');
+        }
+    }
     await validatePlayoffStage(match, session);
     const ids = new Set();
     for (const event of match.events) {
@@ -106,6 +123,52 @@ async function validateMatch(match, session) {
     }
 }
 
+// Advance only explicitly configured tournaments; existing schedules stay untouched.
+async function advancePlayoffs(match, session) {
+    if (!match.tournament || normalizeStatus(match.status) !== STATUS.FINISHED) return;
+    const tournament = await Tournament.findById(match.tournament).session(session).lean();
+    if (!tournament || tournament.format !== 'league_playoff' || tournament.teams.length < 4) return;
+    const filter = { tournament: match.tournament };
+    let pairs = [];
+    if (normalizeStage(match.stage) === STAGE.LEAGUE) {
+        if (await Match.exists({ ...filter, stage: STAGE.LEAGUE, status: { $nin: [STATUS.FINISHED, STATUS.CANCELLED, 'finished', 'cancelled'] } }).session(session)) return;
+        if (await Match.exists({ ...filter, stage: { $in: [STAGE.SEMIFINAL, STAGE.FINAL, STAGE.THIRD_PLACE] } }).session(session)) return;
+        const standings = (await tournamentStats(String(match.tournament), session)).teams.sort((a, b) => b.points - a.points || b.goalDifference - a.goalDifference || b.goalsFor - a.goalsFor || a.name.localeCompare(b.name));
+        pairs = [[STAGE.SEMIFINAL, standings[0]._id, standings[3]._id], [STAGE.SEMIFINAL, standings[1]._id, standings[2]._id]];
+    } else if (normalizeStage(match.stage) === STAGE.SEMIFINAL) {
+        if (await Match.exists({ ...filter, stage: { $in: [STAGE.FINAL, STAGE.THIRD_PLACE] } }).session(session)) return;
+        const semis = await Match.find({ ...filter, stage: STAGE.SEMIFINAL, status: { $in: [STATUS.FINISHED, 'finished'] } }).session(session).lean();
+        if (semis.length !== 2) return;
+        const winners = semis.map(knockoutWinner);
+        if (winners.some(winner => !winner)) return;
+        const losers = semis.map((semi, i) => String(semi.homeTeam) === winners[i] ? semi.awayTeam : semi.homeTeam);
+        pairs = [[STAGE.THIRD_PLACE, losers[0], losers[1]], [STAGE.FINAL, winners[0], winners[1]]];
+    }
+    if (!pairs.length) return;
+    const last = await Match.findOne(filter).sort({ date: -1, time: -1 }).session(session).lean();
+    const baseDate = new Date(last.date.getTime() + 7 * 86400000);
+    const scheduled = await Match.find({ status: { $nin: [STATUS.CANCELLED, 'cancelled'] } }).session(session).lean();
+    for (const [index, [stage, homeTeam, awayTeam]] of pairs.entries()) {
+        let date, time, available = false;
+        for (let day = 0; day < 30 && !available; day++) {
+            date = new Date(baseDate.getTime() + day * 86400000);
+            time = index ? '18:00' : '16:00';
+            const start = new Date(startsAt(date, time, match.timeZone)).getTime();
+            available = !scheduled.some(other => {
+                const otherStart = new Date(startsAt(other.date, other.time, other.timeZone)).getTime();
+                const sameTeam = [String(homeTeam), String(awayTeam)].some(id => [String(other.homeTeam), String(other.awayTeam)].includes(id));
+                const sameStadium = (other.stadium || '').toLocaleLowerCase() === (match.stadium || '').toLocaleLowerCase();
+                return (sameTeam || sameStadium) && start < otherStart + (other.duration || 90) * 60000 && otherStart < start + 90 * 60000;
+            });
+        }
+        if (!available) throw new AppError(409, 'Не удалось подобрать свободное время для плей-офф.', 'SCHEDULE_CONFLICT');
+        const fixture = new Match({ tournament: match.tournament, stage, homeTeam, awayTeam, date, time, stadium: match.stadium, timeZone: match.timeZone });
+        await validateMatch(fixture, session);
+        await fixture.save({ session });
+        scheduled.push(fixture.toObject());
+    }
+}
+
 // RU: Проверить версию формы, чтобы не перезаписать более свежий результат.
 // EN: Check the form revision to avoid overwriting a newer result.
 function assertVersion(match, version) {
@@ -118,7 +181,7 @@ function assertVersion(match, version) {
 async function createMatch(body, timeZone = DEFAULT_TIME_ZONE) {
     const data = matchInput(body);
     return transaction(async session => {
-        if (normalizeStage(data.stage) === STAGE.LEAGUE && await Match.exists({ stage: { $in: [STAGE.SEMIFINAL, STAGE.THIRD_PLACE, STAGE.FINAL] } }).session(session)) {
+        if (normalizeStage(data.stage) === STAGE.LEAGUE && await Match.exists({ tournament: data.tournament || null, stage: { $in: [STAGE.SEMIFINAL, STAGE.THIRD_PLACE, STAGE.FINAL] } }).session(session)) {
             throw new AppError(409, 'После начала плей-офф нельзя добавлять матчи лиги.', 'LEAGUE_LOCKED_BY_PLAYOFF');
         }
         const match = new Match({ ...data, timeZone });
@@ -140,12 +203,12 @@ async function updateMatch(id, body) {
         assertVersion(match, version);
         if (normalizeStage(match.stage) === STAGE.LEAGUE &&
             ['stage', 'homeTeam', 'awayTeam', 'homeScore', 'awayScore', 'events', 'protocolComplete', 'status'].some(key => key in data) &&
-            await Match.exists({ stage: { $in: [STAGE.SEMIFINAL, STAGE.THIRD_PLACE, STAGE.FINAL] } }).session(session)) {
+            await Match.exists({ tournament: match.tournament || null, stage: { $in: [STAGE.SEMIFINAL, STAGE.THIRD_PLACE, STAGE.FINAL] } }).session(session)) {
             throw new AppError(409, 'Сначала удалите матчи плей-офф, затем меняйте результаты лиги.', 'LEAGUE_LOCKED_BY_PLAYOFF');
         }
         if (normalizeStage(match.stage) === STAGE.SEMIFINAL &&
             ['stage', 'homeTeam', 'awayTeam', 'homeScore', 'awayScore', 'homePenaltyScore', 'awayPenaltyScore', 'status'].some(key => key in data)) {
-            const dependentMatch = await Match.findOne({ stage: { $in: [STAGE.THIRD_PLACE, STAGE.FINAL] } }).session(session).select('_id');
+            const dependentMatch = await Match.findOne({ tournament: match.tournament || null, stage: { $in: [STAGE.THIRD_PLACE, STAGE.FINAL] } }).session(session).select('_id');
             if (dependentMatch) throw new AppError(409, 'Сначала удалите матч финала или за третье место.', 'PLAYOFF_DEPENDENCY_EXISTS');
         }
         match.set(data);
@@ -155,6 +218,7 @@ async function updateMatch(id, body) {
         match.increment();
         await match.save({ session });
         await statistics.rebuildStatistics(session);
+        await advancePlayoffs(match, session);
         return match.toObject();
     });
 }
@@ -169,11 +233,11 @@ async function deleteMatch(id, version) {
         if (!match) throw new AppError(404, 'Матч не найден.', 'MATCH_NOT_FOUND');
         if (version !== undefined) assertVersion(match, version);
         if (normalizeStage(match.stage) === STAGE.LEAGUE &&
-            await Match.exists({ stage: { $in: [STAGE.SEMIFINAL, STAGE.THIRD_PLACE, STAGE.FINAL] } }).session(session)) {
+            await Match.exists({ tournament: match.tournament || null, stage: { $in: [STAGE.SEMIFINAL, STAGE.THIRD_PLACE, STAGE.FINAL] } }).session(session)) {
             throw new AppError(409, 'Сначала удалите матчи плей-офф, затем меняйте результаты лиги.', 'LEAGUE_LOCKED_BY_PLAYOFF');
         }
         if (normalizeStage(match.stage) === STAGE.SEMIFINAL) {
-            const dependentMatch = await Match.findOne({ stage: { $in: [STAGE.THIRD_PLACE, STAGE.FINAL] } }).session(session).select('_id');
+            const dependentMatch = await Match.findOne({ tournament: match.tournament || null, stage: { $in: [STAGE.THIRD_PLACE, STAGE.FINAL] } }).session(session).select('_id');
             if (dependentMatch) throw new AppError(409, 'Сначала удалите матч финала или за третье место.', 'PLAYOFF_DEPENDENCY_EXISTS');
         }
         await Match.deleteOne({ _id: id }, { session });
@@ -182,3 +246,4 @@ async function deleteMatch(id, version) {
 }
 
 module.exports = { createMatch, updateMatch, deleteMatch, validateMatch, knockoutWinner, validatePlayoffStage };
+

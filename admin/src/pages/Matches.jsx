@@ -4,10 +4,12 @@ import api from '../api/axios';
 import CollectionPage from '../components/CollectionPage';
 import EntityDialog from '../components/EntityDialog';
 import ConfirmDialog from '../components/ConfirmDialog';
+import ScheduleDialog from '../components/ScheduleDialog';
 import Feedback from '../components/Feedback';
 import { useCollection } from '../hooks/useCollection';
 import { imageUrl } from '../api/media';
 import { useLanguage } from '../i18n';
+import { useTournament } from '../tournaments/TournamentContext';
 import { normalizeMatchEvents } from '../utils/matchForm';
 
 const matchStatuses = ['Запланирован', 'Идёт', 'Завершён', 'Отменён'];
@@ -39,10 +41,13 @@ function formatMatchDate(match, locale = 'ru-RU') {
 // EN: Manage fixtures, scores, and the complete match event protocol.
 export default function Matches() {
   const { t, locale } = useLanguage();
-  const list = useCollection('matches');
+  const { selected, tournaments } = useTournament();
+  const tournament = tournaments.find(item => item._id === selected);
+  const list = useCollection('matches', { tournament: selected });
   const teams = useCollection('teams', { limit: 100, sort: 'name' }, { allPages: true });
   const players = useCollection('players', { limit: 100, sort: 'name' }, { allPages: true });
   const [editing, setEditing] = useState(null);
+  const [scheduling, setScheduling] = useState(false);
   const [removing, setRemoving] = useState(null);
   const [notice, setNotice] = useState('');
   const closeEdit = useCallback(() => setEditing(null), []);
@@ -67,6 +72,7 @@ export default function Matches() {
       homePenaltyScore: values.homePenaltyScore === '' ? null : Number(values.homePenaltyScore),
       awayPenaltyScore: values.awayPenaltyScore === '' ? null : Number(values.awayPenaltyScore), protocolComplete: Boolean(values.protocolComplete),
       events: values.events };
+    if (!editing._id && selected !== 'legacy') body.tournament = selected;
     if (editing._id) await api.put(`/matches/${editing._id}`, { ...body, version: editing.version });
     else await api.post('/matches', body);
     setNotice(editing._id ? t('Матч и турнирная статистика обновлены.') : t('Матч добавлен в календарь.'));
@@ -102,7 +108,8 @@ export default function Matches() {
     }
   }
   const scoreLocked = editing && ['Запланирован', 'Отменён'].includes(editing.status);
-  const teamOptions = teams.data.map((team) => ({ value: team._id, label: team.name }));
+  const eligibleTeams = tournament ? teams.data.filter(team => tournament.teams.some(item => item._id === team._id)) : teams.data;
+  const teamOptions = eligibleTeams.map((team) => ({ value: team._id, label: team.name }));
   const matchFields = [
     { name: 'participantsHeading', type: 'custom', render: () => <MatchFormSection title={t('Участники матча')} description={t('Сначала выберите две разные команды турнира.')} /> },
     { name: 'homeTeam', label: 'Команда хозяев', type: 'select', required: true, placeholder: 'Выберите команду', options: teamOptions,
@@ -128,7 +135,7 @@ export default function Matches() {
     <Feedback message={notice} onDismiss={() => setNotice('')} />
     {(!teams.data.length || !players.data.length) && <div className="notice notice-info">{t('Добавьте команды и игроков, чтобы назначать участников матчам.')}</div>}
     {(teams.error || players.error) && <div className="notice notice-error" role="alert">{teams.error || players.error}<button className="text-button" onClick={() => { teams.refresh(); players.refresh(); }}>{t('Повторить')}</button></div>}
-    <CollectionPage title="Матчи" description="Расписание, результаты и персональные события протокола." {...list} filterOptions={[{ value: '', label: 'Все статусы' }, ...matchStatuses.map((value) => ({ value, label: value }))]} action={<button className="button button-primary" onClick={() => beginEdit()} disabled={teams.data.length < 2}><Plus size={18} />{t('Создать матч')}</button>}>
+    <CollectionPage title="Матчи" description="Расписание, результаты и персональные события протокола." {...list} filterOptions={[{ value: '', label: 'Все статусы' }, ...matchStatuses.map((value) => ({ value, label: value }))]} action={<div className="heading-actions"><button className="button button-secondary" onClick={() => setScheduling(true)} disabled={teams.data.length < 2}>{t('Автоматическое расписание')}</button><button className="button button-primary" onClick={() => beginEdit()} disabled={teams.data.length < 2}><Plus size={18} />{t('Создать матч')}</button></div>}>
       <div className="matches-grid">{list.data.map((match) => <article className="match-card surface" key={match._id}><div className="match-card-top"><span className={`match-status status-${match.status === 'Завершён' ? 'finished' : match.status === 'Идёт' ? 'live' : match.status === 'Отменён' ? 'cancelled' : 'scheduled'}`}><span />{t(match.status)}</span><div className="row-actions"><button className="icon-button" aria-label={t('Изменить матч')} onClick={() => beginEdit(match)}><Pencil size={16} /></button><button className="icon-button danger-hover" aria-label={t('Удалить матч')} onClick={() => setRemoving(match)}><Trash2 size={16} /></button></div></div>
         <div className="match-card-meta"><CalendarClock size={15} />{formatMatchDate(match, locale)}</div>
         <span className="match-stage">{t(match.stage || 'Лига')}{match.homePenaltyScore != null ? ` · ${t('пен.')}: ${match.homePenaltyScore}:${match.awayPenaltyScore}` : ''}</span>
@@ -137,6 +144,7 @@ export default function Matches() {
         {match.events?.length > 0 && <div className="event-preview">{match.events.slice(0, 4).map((event) => { const scorerTeamId = event.team?._id || event.player?.team?._id; const creditedTeam = scorerTeamId === match.homeTeam?._id ? match.awayTeam?.name : scorerTeamId === match.awayTeam?._id ? match.homeTeam?.name : ''; return <span className="event-preview-item" key={event._id}><i className={`event-mark event-${event.type === 'Гол' ? 'goal' : event.type === 'Автогол' ? 'own' : 'card'}`} />{event.minute}′ · {event.player?.name || t('Игрок')} · {t(event.type)}{event.type === 'Автогол' && creditedTeam ? ` · ${t('в пользу')}: ${creditedTeam}` : ''}</span>; })}{match.events.length > 4 && <span className="event-more">+{match.events.length - 4} {t('события')}</span>}</div>}
       </article>)}</div>
     </CollectionPage>
+    {scheduling && <ScheduleDialog teams={eligibleTeams} tournament={selected} onClose={() => setScheduling(false)} onCreated={list.refresh} />}
     {editing && <EntityDialog title={editing._id ? 'Изменить матч' : 'Новый матч'} fields={matchFields} initial={editing} onClose={closeEdit} onSubmit={save} submitLabel={editing._id ? 'Сохранить результат' : 'Добавить матч'} />}
     {removing && <ConfirmDialog title="Удалить матч?" description="Это также пересчитает таблицу, голы, ассисты и карточки." onClose={closeRemove} onConfirm={remove} />}
   </>;

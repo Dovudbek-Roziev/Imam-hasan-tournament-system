@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ArrowDownToLine, ArrowUpRight, CalendarDays, CheckCircle2, CircleDot, Clock3, Flag, Goal, LoaderCircle, ShieldCheck, Users } from 'lucide-react';
 import api from '../api/axios';
 import { imageUrl } from '../api/media';
+import { useTournament } from '../tournaments/TournamentContext';
 import { useLanguage } from '../i18n';
 
 // RU: Проверить структуру сводного ответа до чтения его полей в интерфейсе.
@@ -23,6 +24,7 @@ function readDashboard(response, t) {
 // EN: Display summary metrics, upcoming matches, and tournament status.
 export default function Dashboard() {
   const { t, locale } = useLanguage();
+  const { selected } = useTournament();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -33,23 +35,23 @@ export default function Dashboard() {
   // EN: Reload tournament metrics on an administrator action.
   const load = useCallback(async (signal) => {
     setLoading(true); setError('');
-    try { const response = await api.get('/stats/dashboard', { signal }); setData(readDashboard(response, t)); }
+    try { const response = await api.get('/stats/dashboard', { signal, params: { tournament: selected } }); setData(readDashboard(response, t)); }
     catch (failure) { if (!signal?.aborted) setError(failure.response?.data?.message || (failure.message === t('Сервер вернул обзор турнира в неожиданном формате.') ? failure.message : t('Не удалось загрузить обзор турнира.'))); }
     finally { if (!signal?.aborted) setLoading(false); }
-  }, [t]);
+  }, [t, selected]);
 
   useEffect(() => {
     const controller = new AbortController();
     // RU: Загрузить статистику с отменой запроса при закрытии страницы.
     // EN: Load dashboard data and cancel the request when the page closes.
     async function fetchDashboard() {
-      try { const response = await api.get('/stats/dashboard', { signal: controller.signal }); setData(readDashboard(response, t)); }
+      try { const response = await api.get('/stats/dashboard', { signal: controller.signal, params: { tournament: selected } }); setData(readDashboard(response, t)); }
       catch (failure) { if (!controller.signal.aborted) setError(failure.response?.data?.message || (failure.message === t('Сервер вернул обзор турнира в неожиданном формате.') ? failure.message : t('Не удалось загрузить обзор турнира.'))); }
       finally { if (!controller.signal.aborted) setLoading(false); }
     }
     fetchDashboard();
     return () => controller.abort();
-  }, [t]);
+  }, [t, selected]);
 
   // RU: Скачать экспорт истории турнира из административного API.
   // EN: Download the tournament history export from the admin API.
@@ -58,7 +60,7 @@ export default function Dashboard() {
   async function downloadPdfReport() {
     setDownloading(true); setError('');
     try {
-      const response = await api.get('/stats/archive');
+      const response = await api.get('/stats/archive', { params: { tournament: selected } });
       const archive = response.data?.data;
       if (!archive || !Array.isArray(archive.teams) || !Array.isArray(archive.matches)) throw new Error('Не удалось подготовить архив турнира.');
       const [{ default: pdfMake }, { default: pdfFonts }, { buildTournamentPdfDefinition }] = await Promise.all([
@@ -97,3 +99,4 @@ export default function Dashboard() {
     </>}
   </section>;
 }
+

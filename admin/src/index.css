@@ -426,3 +426,10 @@ a { color: inherit; }
 
 .toolbar-actions { display: flex; align-items: center; gap: 8px; }
 .filter-select { min-height: 40px; padding: 0 34px 0 12px; border: 1px solid var(--border); border-radius: 10px; color: var(--ink); background: #fff; }
+
+
+.schedule-teams { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; max-height: 180px; overflow: auto; }
+.schedule-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.schedule-preview { max-height: 240px; overflow: auto; border: 1px solid #dfe8e1; border-radius: 12px; padding: 12px; line-height: 2; }
+
+.schedule-panel { padding: 20px; }

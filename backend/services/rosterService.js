@@ -1,4 +1,5 @@
 const Team = require('../models/Team');
+const Tournament = require('../models/Tournament');
 const Player = require('../models/Player');
 const Match = require('../models/Match');
 const AppError = require('../utils/AppError');
@@ -38,7 +39,8 @@ async function deleteTeam(id) {
         if (!await Team.exists({ _id: id }).session(session)) throw new AppError(404, 'Команда не найдена.', 'TEAM_NOT_FOUND');
         const players = await Player.exists({ team: id }).session(session);
         const matches = await Match.exists({ $or: [{ homeTeam: id }, { awayTeam: id }] }).session(session);
-        if (players || matches) throw new AppError(409, 'Нельзя удалить команду, у которой есть игроки или матчи.', 'TEAM_IN_USE');
+        const tournament = await Tournament.exists({ teams: id }).session(session);
+        if (players || matches || tournament) throw new AppError(409, 'Нельзя удалить команду, у которой есть игроки или матчи.', 'TEAM_IN_USE');
         await Team.deleteOne({ _id: id }, { session });
     });
 }
@@ -103,3 +105,4 @@ async function deletePlayer(id) {
 }
 
 module.exports = { createTeam, updateTeam, deleteTeam, createPlayer, updatePlayer, deletePlayer };
+

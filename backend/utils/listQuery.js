@@ -6,7 +6,7 @@ const { STATUS, normalizeStatus } = require('../domain/matchRules');
 const definitions = Object.freeze({
     teams: { filters: ['search'], sorts: ['name', '-name', '-points'], defaultSort: 'name' },
     players: { filters: ['search', 'team'], sorts: ['name', '-name', 'number', '-goals', '-assists'], defaultSort: 'name' },
-    matches: { filters: ['search', 'team', 'status', 'from', 'to'], sorts: ['date', '-date'], defaultSort: 'date' },
+    matches: { filters: ['tournament', 'search', 'team', 'status', 'from', 'to'], sorts: ['date', '-date'], defaultSort: 'date' },
     news: { filters: ['search', 'from', 'to'], sorts: ['date', '-date', 'title'], defaultSort: '-date' },
 });
 
@@ -40,7 +40,10 @@ function parseListQuery(resource, query) {
     const sort = { [field]: direction };
     if (resource === 'matches') sort.time = direction;
     sort._id = direction;
-    const filter = {};
+    const filter = resource === 'matches' ? { tournament: null } : {};
+    if (resource === 'matches' && query.tournament !== undefined) {
+        filter.tournament = query.tournament === 'legacy' ? null : new mongoose.Types.ObjectId(objectId(query.tournament));
+    }
     if (query.search !== undefined) {
         const search = query.search.trim();
         if (!search) invalidQuery();

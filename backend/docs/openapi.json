@@ -887,6 +887,16 @@
             "description": "Порядок сортировки; ID разрешает равенство."
           },
           {
+            "name": "tournament",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
             "name": "search",
             "in": "query",
             "required": false,

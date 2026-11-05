@@ -1,4 +1,8 @@
 const Team = require('../models/Team');
+const Tournament = require('../models/Tournament');
+const mongoose = require('mongoose');
+const { objectId } = require('../utils/input');
+const AppError = require('../utils/AppError');
 const Player = require('../models/Player');
 const Match = require('../models/Match');
 const News = require('../models/News');
@@ -7,12 +11,15 @@ const readSnapshot = require('./readSnapshot');
 
 // RU: Получить согласованные показатели и ближайшие игры из реальных данных турнира.
 // EN: Read consistent totals and upcoming fixtures from actual tournament data.
-async function getDashboard(timeZone, now = new Date()) {
+async function getDashboard(timeZone, now = new Date(), tournamentId = null) {
     return readSnapshot(async session => {
-        const teams = await Team.countDocuments().session(session);
-        const players = await Player.countDocuments().session(session);
+        const tournament = tournamentId && tournamentId !== 'legacy' ? await Tournament.findById(objectId(tournamentId)).session(session).lean() : null;
+        if (tournamentId && tournamentId !== 'legacy' && !tournament) throw new AppError(404, 'Турнир не найден.', 'TOURNAMENT_NOT_FOUND');
+        const filter = { tournament: tournament ? new mongoose.Types.ObjectId(tournament._id) : null };
+        const teams = tournament ? tournament.teams.length : await Team.countDocuments().session(session);
+        const players = await Player.countDocuments(tournament ? { team: { $in: tournament.teams } } : {}).session(session);
         const news = await News.countDocuments().session(session);
-        const groups = await Match.aggregate([{ $group: { _id: '$status', count: { $sum: 1 },
+        const groups = await Match.aggregate([{ $match: filter }, { $group: { _id: '$status', count: { $sum: 1 },
             goals: { $sum: { $add: ['$homeScore', '$awayScore'] } },
             incomplete: { $sum: { $cond: [{ $eq: ['$protocolComplete', true] }, 0, 1] } },
         } }]).session(session);
@@ -27,7 +34,7 @@ async function getDashboard(timeZone, now = new Date()) {
         // RU: Преобразование в UTC учитывает сохранённый пояс и старые записи без него.
         // EN: UTC conversion uses the stored zone and supports legacy records without one.
         const upcoming = await Match.aggregate([
-            { $match: { status: { $in: [STATUS.SCHEDULED, 'scheduled'] } } },
+            { $match: { ...filter, status: { $in: [STATUS.SCHEDULED, 'scheduled'] } } },
             { $addFields: { kickoff: { $dateFromString: {
                 dateString: { $concat: [{ $dateToString: { date: '$date', format: '%Y-%m-%d', timezone: 'UTC' } }, 'T', '$time', ':00'] },
                 timezone: { $ifNull: ['$timeZone', 'Asia/Bishkek'] }, onError: null, onNull: null,
@@ -42,3 +49,4 @@ async function getDashboard(timeZone, now = new Date()) {
 }
 
 module.exports = { getDashboard };
+

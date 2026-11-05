@@ -79,7 +79,7 @@ async function rebuildStatistics(session) {
     const players = await Player.find().session(session).lean();
     // RU: Native query сохраняет старое английское значение без преобразования setter-ом схемы.
     // EN: A native query preserves the legacy English value without schema setter conversion.
-    const matches = await Match.collection.find({ status: { $in: [STATUS.FINISHED, 'finished'] } }, { session }).toArray();
+    const matches = await Match.collection.find({ tournament: null, status: { $in: [STATUS.FINISHED, 'finished'] } }, { session }).toArray();
     const { teamTotals, playerTotals } = calculateStatistics(teams, players, matches);
     if (teamTotals.size) await Team.bulkWrite([...teamTotals].map(([id, totals]) => ({
         updateOne: { filter: { _id: id }, update: { $set: totals } },
@@ -91,3 +91,4 @@ async function rebuildStatistics(session) {
 }
 
 module.exports = { calculateStatistics, rebuildStatistics };
+

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { getTournament } from '../tournaments/selection';
 import { getLanguage } from '../i18n';
 
 // RU: Определить адрес компьютера, на котором запущен Expo Metro.
@@ -34,6 +35,9 @@ const instance = axios.create({
 // RU: Передать выбранный язык API для локализации сообщений об ошибках.
 // EN: Send the selected language to the API to localize error messages.
 instance.interceptors.request.use((config) => {
+    const tournament = getTournament();
+    if (config.url === '/matches') config.params = { ...config.params, tournament };
+    if (config.url === '/stats/table' && tournament !== 'legacy') config.url = `/tournaments/${tournament}/table`;
     config.headers = config.headers || {};
     config.headers['Accept-Language'] = getLanguage();
     return config;
@@ -50,3 +54,4 @@ export function imageUrl(path) {
     const origin = baseUrl.replace(/\/api$/i, '');
     return `${origin}${path.startsWith('/') ? path : `/${path}`}`;
 }
+

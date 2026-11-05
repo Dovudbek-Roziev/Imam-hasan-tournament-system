@@ -4,6 +4,7 @@ import { useLanguage } from '../i18n';
 
 const links = [
   { name: 'Обзор', path: '/', icon: LayoutDashboard },
+  { name: 'Турниры', path: '/tournaments', icon: Trophy },
   { name: 'Команды', path: '/teams', icon: Users },
   { name: 'Игроки', path: '/players', icon: UserRound },
   { name: 'Матчи', path: '/matches', icon: Trophy },
@@ -25,3 +26,4 @@ export default function Sidebar({ open, onClose }) {
     </aside>
   </>;
 }
+
