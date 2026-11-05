@@ -11,6 +11,7 @@ import { imageUrl } from '../api/media';
 import { useLanguage } from '../i18n';
 import { useTournament } from '../tournaments/TournamentContext';
 import { normalizeMatchEvents } from '../utils/matchForm';
+import { parseWholeNumber } from '../utils/numbers';
 
 const matchStatuses = ['Запланирован', 'Идёт', 'Завершён', 'Отменён'];
 const eventTypes = ['Гол', 'Автогол', 'Жёлтая карточка', 'Красная карточка'];
@@ -66,12 +67,17 @@ export default function Matches() {
   // RU: Сохранить матч через API с номером версии для защиты от конфликтов.
   // EN: Save a match through the API using its version to prevent stale updates.
   async function save(values) {
+    const events = values.events.map(event => {
+      const minute = parseWholeNumber(event.minute, 0, 180);
+      if (minute === null) { const failure = new Error(t('Укажите минуту события от 0 до 180.')); failure.userMessage = failure.message; throw failure; }
+      return { ...event, minute };
+    });
     const body = { homeTeam: values.homeTeam, awayTeam: values.awayTeam, date: values.date, time: values.time, stage: values.stage,
       stadium: (values.stadium || '').trim() || 'Основной стадион', status: values.status,
       homeScore: Number(values.homeScore), awayScore: Number(values.awayScore),
       homePenaltyScore: values.homePenaltyScore === '' ? null : Number(values.homePenaltyScore),
       awayPenaltyScore: values.awayPenaltyScore === '' ? null : Number(values.awayPenaltyScore), protocolComplete: Boolean(values.protocolComplete),
-      events: values.events };
+      events };
     if (!editing._id && selected !== 'legacy') body.tournament = selected;
     if (editing._id) await api.put(`/matches/${editing._id}`, { ...body, version: editing.version });
     else await api.post('/matches', body);
@@ -181,7 +187,7 @@ function MatchProtocol({ editing, players, locked, patch }) {
   const eventFields = events.map((event, index) => {
     const player = players.get(event.player);
     const eligible = event.type === 'Гол' && player ? [...players.values()].filter((person) => person.team?._id === player.team?._id && person._id !== player._id) : [];
-    return <div className="protocol-event" key={index}><label className="field event-minute"><span>{t('Минута')}</span><input type="number" min="0" max="180" value={event.minute} disabled={locked} onChange={(input) => updateEvent(index, 'minute', Number(input.target.value))} /></label>
+    return <div className="protocol-event" key={index}><label className="field event-minute"><span>{t('Минута')}</span><input type="number" min="0" max="180" value={event.minute} disabled={locked} onChange={(input) => updateEvent(index, 'minute', input.target.value)} /></label>
       <label className="field"><span>{t('Тип события')}</span><select value={event.type} disabled={locked} onChange={(input) => updateEvent(index, 'type', input.target.value)}>{eventTypes.map((type) => <option key={type} value={type}>{t(type)}</option>)}</select></label>
       <label className="field"><span>{t('Игрок')}</span><select required={!locked} value={event.player} disabled={locked} onChange={(input) => updateEvent(index, 'player', input.target.value)}><option value="" disabled>{t('Выберите игрока')}</option>{[...players.values()].filter((person) => [editing.homeTeam, editing.awayTeam].includes(person.team?._id)).map((person) => <option key={person._id} value={person._id}>{person.name} · {person.team?.name}</option>)}</select></label>
       {event.type === 'Гол' && <label className="field"><span>{t('Ассистент')}</span><select value={event.assist || ''} disabled={locked} onChange={(input) => updateEvent(index, 'assist', input.target.value)}><option value="">{t('Без ассиста')}</option>{eligible.map((person) => <option key={person._id} value={person._id}>{person.name}</option>)}</select></label>}

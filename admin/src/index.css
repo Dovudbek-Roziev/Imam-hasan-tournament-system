@@ -451,3 +451,32 @@ a { color: inherit; }
 @media (max-width: 700px) { .inbox-layout { grid-template-columns: 1fr; } .inbox-list { min-height: 0; max-height: 260px; overflow-y: auto; } .inbox-compose { flex-wrap: wrap; } }
 
 .schedule-form-fields { display: flex; flex-direction: column; gap: 14px; border: 0; margin: 0; padding: 0; min-width: 0; }
+
+/* Schedule: the preview scrolls with the form; the actions stay visible. */
+.dialog > .schedule-dialog-layout { display: flex; flex-direction: column; min-height: 0; }
+.schedule-dialog-content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 20px 22px 24px; }
+.schedule-dialog-content .schedule-form-fields { gap: 15px; }
+.schedule-dialog-content .schedule-form-fields > p { color: #647169; font-size: 13px; line-height: 1.55; margin: 0; }
+.schedule-dialog-content .schedule-teams { padding: 12px 14px; border: 1px solid #e5eee7; border-radius: 12px; background: #f7faf7; color: #315440; font-size: 13px; }
+.schedule-dialog-content .schedule-preview { max-height: none; overflow: visible; padding: 16px; margin-top: 20px; border: 1px solid #dcebe0; border-radius: 15px; background: #f8fbf8; line-height: normal; scroll-margin-top: 12px; }
+.schedule-preview-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+.schedule-preview-heading > div { display: grid; gap: 5px; min-width: 0; }
+.schedule-preview-heading strong { color: #1c3b28; font-size: 15px; }
+.schedule-preview-heading span { color: #6c7e71; font-size: 11px; line-height: 1.45; }
+.schedule-preview-heading .schedule-count { flex: 0 0 auto; border-radius: 99px; padding: 6px 9px; background: #e6f3e9; color: #176437; font-weight: 700; }
+.schedule-round { overflow: hidden; margin-top: 10px; border: 1px solid #e3ece5; border-radius: 11px; background: #fff; }
+.schedule-round-heading { display: flex; justify-content: space-between; gap: 8px; padding: 10px 12px; color: #225735; background: #f0f7f1; font-size: 12px; font-weight: 800; }
+.schedule-round-heading span { color: #728277; font-size: 11px; font-weight: 600; }
+.schedule-fixture { display: flex; align-items: baseline; gap: 12px; padding: 10px 12px; color: #34483a; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.schedule-fixture + .schedule-fixture { border-top: 1px solid #eff3f0; }
+.schedule-fixture time { flex: 0 0 auto; color: #1b7040; font-weight: 800; }
+.schedule-fixture b { color: #9aa79d; padding: 0 3px; }
+.schedule-dialog-layout > .schedule-dialog-actions { position: static; display: flex; flex-direction: column; flex: 0 0 auto; gap: 8px; padding: 12px 22px 16px; border-top: 1px solid #e9efea; background: #fff; }
+.schedule-action-hint { color: #68796d; font-size: 11px; line-height: 1.4; }
+.schedule-action-buttons { display: flex; justify-content: flex-end; gap: 9px; }
+@media (max-width: 700px) {
+  .schedule-dialog-content { padding: 16px 15px 20px; }
+  .schedule-dialog-layout > .schedule-dialog-actions { padding: 10px 15px max(12px, env(safe-area-inset-bottom)); }
+  .schedule-action-buttons > .button { flex: 1; min-width: 0; min-height: 44px; padding-inline: 8px; font-size: 11px; }
+  .schedule-fixture { font-size: 12px; }
+}

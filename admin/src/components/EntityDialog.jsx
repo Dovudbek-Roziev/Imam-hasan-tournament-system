@@ -26,7 +26,7 @@ export default function EntityDialog({ title, fields, initial, onClose, onSubmit
     if (missingRequiredField) { setError(t('Заполните обязательные поля формы.')); return; }
     setSaving(true);
     try { await onSubmit(values); onClose(); }
-    catch (failure) { setError(failure.response?.data?.message || t('Не удалось сохранить данные.')); }
+    catch (failure) { setError(failure.response?.data?.message || failure.userMessage || t('Не удалось сохранить данные.')); }
     finally { setSaving(false); }
   }
 
