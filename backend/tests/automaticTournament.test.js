@@ -5,7 +5,7 @@ const { MongoMemoryReplSet } = require('mongodb-memory-server');
 const Team = require('../models/Team');
 const Match = require('../models/Match');
 const Tournament = require('../models/Tournament');
-const { generateSchedule } = require('../services/scheduleService');
+const { generateSchedule, previewSchedule } = require('../services/scheduleService');
 const { createMatch, updateMatch } = require('../services/matchService');
 const { tournamentStats } = require('../services/tournamentRead');
 const { createAdmin } = require('../services/adminService');
@@ -42,6 +42,8 @@ test('seasons are isolated and league results advance automatically to the final
         } finally { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
         await assert.rejects(generateSchedule({ ...input, teams: ids.slice(0, 2), tournament: String(first._id) }, 'Asia/Bishkek'), { code: 'INVALID_TEAMS' });
         assert.equal(await generateSchedule({ ...input, tournament: String(first._id) }, 'Asia/Bishkek'), 6);
+        await assert.rejects(previewSchedule({ ...input, tournament: String(first._id), startTime: '12:30', stadium: 'Другая площадка' }, 'Asia/Bishkek'), { code: 'SCHEDULE_EXISTS' });
+        await assert.rejects(previewSchedule({ ...input, tournament: String(second._id), startTime: '12:30', stadium: 'Другая площадка' }, 'Asia/Bishkek'), { code: 'SCHEDULE_CONFLICT' });
         assert.equal(await generateSchedule({ ...input, startDate: '2027-11-20', tournament: String(second._id) }, 'Asia/Bishkek'), 6);
         await assert.rejects(generateSchedule({ ...input, tournament: String(first._id) }, 'Asia/Bishkek'), { code: 'SCHEDULE_EXISTS' });
         const league = await Match.find({ tournament: first._id, stage: 'Лига' });

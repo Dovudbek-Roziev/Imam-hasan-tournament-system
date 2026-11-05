@@ -29,25 +29,64 @@ function buildSchedule(input) {
     }));
 }
 
+// RU: Проверить пересечение расписания с уже назначенными матчами до показа и сохранения.
+// EN: Check generated fixtures against existing matches before previewing or saving.
+async function validateScheduleConflicts(fixtures, timeZone, session) {
+    let query = Match.find({ status: { $nin: ['Отменён', 'cancelled'] } });
+    if (session) query = query.session(session);
+    const existing = await query.lean();
+    for (const fixture of fixtures) {
+        const start = new Date(startsAt(fixture.date, fixture.time, timeZone)).getTime();
+        const end = start + fixture.duration * 60000;
+        for (const other of existing) {
+            const otherStart = new Date(startsAt(other.date, other.time, other.timeZone)).getTime();
+            const otherEnd = otherStart + (other.duration || 90) * 60000;
+            const sameTeam = [fixture.homeTeam, fixture.awayTeam].some(id => [String(other.homeTeam), String(other.awayTeam)].includes(String(id)));
+            const sameStadium = fixture.stadium.toLocaleLowerCase() === other.stadium?.toLocaleLowerCase();
+            if (start < otherEnd && otherStart < end && (sameTeam || sameStadium)) {
+                throw new AppError(409, 'Время пересекается с другим матчем команды или стадиона.', 'SCHEDULE_CONFLICT');
+            }
+        }
+    }
+}
+
+// RU: Проверить команды, турнир и пустоту его календаря до предварительного просмотра или сохранения.
+// EN: Validate teams, tournament membership, and an empty calendar before previewing or saving.
+async function validateScheduleTarget(input, session) {
+    let teamQuery = Team.countDocuments({ _id: { $in: input.teams.map(objectId) } });
+    if (session) teamQuery = teamQuery.session(session);
+    if (await teamQuery !== input.teams.length) throw new AppError(400, 'Одна из выбранных команд не существует.', 'INVALID_TEAMS');
+
+    let tournament = null;
+    if (input.tournament) {
+        let tournamentQuery = Tournament.findById(objectId(input.tournament));
+        if (session) tournamentQuery = tournamentQuery.session(session);
+        tournament = await tournamentQuery;
+        if (!tournament || input.teams.length !== tournament.teams.length || input.teams.some(id => !tournament.teams.some(team => String(team) === objectId(id)))) {
+            throw new AppError(400, 'Выберите команды турнира.', 'INVALID_TEAMS');
+        }
+    }
+
+    let matchesQuery = Match.exists({ tournament: tournament?._id || null });
+    if (session) matchesQuery = matchesQuery.session(session);
+    if (await matchesQuery) throw new AppError(409, 'Автоматическое создание доступно только для пустого календаря.', 'SCHEDULE_EXISTS');
+    return tournament;
+}
+
+// RU: Показать только тот предварительный календарь, который можно сохранить сейчас.
+// EN: Preview only a schedule that can be saved with the current calendar.
+async function previewSchedule(input, timeZone) {
+    const fixtures = buildSchedule(input);
+    await validateScheduleTarget(input);
+    await validateScheduleConflicts(fixtures, timeZone);
+    return fixtures;
+}
+
 async function generateSchedule(input, timeZone) {
     const fixtures = buildSchedule(input);
     return transaction(async session => {
-        const teams = await Team.countDocuments({ _id: { $in: input.teams } }).session(session);
-        if (teams !== input.teams.length) throw new AppError(400, 'Одна из выбранных команд не существует.', 'INVALID_TEAMS');
-        let tournament = null;
-        if (input.tournament) { tournament = await Tournament.findById(objectId(input.tournament)).session(session); if (!tournament || input.teams.length !== tournament.teams.length || input.teams.some(id => !tournament.teams.some(team => String(team) === id))) throw new AppError(400, 'Выберите команды турнира.', 'INVALID_TEAMS'); }
-        if (await Match.exists({ tournament: tournament?._id || null }).session(session)) throw new AppError(409, 'Автоматическое создание доступно только для пустого календаря.', 'SCHEDULE_EXISTS');
-        const existing = await Match.find({ status: { $nin: ['Отменён', 'cancelled'] } }).session(session).lean();
-        for (const fixture of fixtures) {
-            const start = new Date(startsAt(fixture.date, fixture.time, timeZone)).getTime();
-            const end = start + fixture.duration * 60000;
-            for (const other of existing) {
-                const otherStart = new Date(startsAt(other.date, other.time, other.timeZone)).getTime();
-                const otherEnd = otherStart + (other.duration || 90) * 60000;
-                const sameTeam = [fixture.homeTeam, fixture.awayTeam].some(id => [String(other.homeTeam), String(other.awayTeam)].includes(String(id)));
-                if (start < otherEnd && otherStart < end && (sameTeam || fixture.stadium.toLocaleLowerCase() === other.stadium?.toLocaleLowerCase())) throw new AppError(409, 'Время пересекается с другим матчем команды или стадиона.', 'SCHEDULE_CONFLICT');
-            }
-        }
+        const tournament = await validateScheduleTarget(input, session);
+        await validateScheduleConflicts(fixtures, timeZone, session);
         const docs = fixtures.map(fixture => { const record = { ...fixture }; delete record.round; return new Match({ ...record, tournament: tournament?._id || null, timeZone }); });
         for (const doc of docs) await doc.validate();
         await Match.insertMany(docs, { session });
@@ -55,4 +94,4 @@ async function generateSchedule(input, timeZone) {
         return docs.length;
     });
 }
-module.exports = { buildSchedule, generateSchedule };
+module.exports = { buildSchedule, previewSchedule, generateSchedule };

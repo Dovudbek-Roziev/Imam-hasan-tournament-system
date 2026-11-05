@@ -98,7 +98,7 @@ test('Ничья даёт по одному очку, победа гостей 
     await matches.createMatch(payload({ homeScore: 0, events: [] }));
     assert.equal((await Team.findById(a._id)).points, 1);
     assert.equal((await Team.findById(b._id)).draw, 1);
-    await matches.createMatch(payload({ homeScore: 0, awayScore: 1, events: [goal(b1)] }));
+    await matches.createMatch(payload({ homeScore: 0, awayScore: 1, events: [goal(b1)], time: '20:00' }));
     assert.equal((await Team.findById(a._id)).lost, 1);
     assert.equal((await Team.findById(b._id)).points, 4);
     assert.equal((await Player.findById(b1._id)).goals, 1);
@@ -296,6 +296,17 @@ test('Параллельное создание двух матчей сохра
     assert.equal((await Player.findById(a1._id)).goals, 2);
 });
 
+// RU: Не разрешать пересекающиеся матчи в старом календаре без выбранного турнира.
+// EN: Reject overlapping fixtures in the legacy calendar without a selected tournament.
+test('legacy calendar rejects overlapping matches for the same team or stadium', async () => {
+    const first = await matches.createMatch(payload({ status: STATUS.SCHEDULED, homeScore: 0, awayScore: 0, protocolComplete: false, events: [] }));
+    await assert.rejects(
+        matches.createMatch(payload({ status: STATUS.SCHEDULED, homeScore: 0, awayScore: 0, protocolComplete: false, events: [], time: '18:30' })),
+        { code: 'SCHEDULE_CONFLICT' },
+    );
+    assert.equal(await Match.countDocuments({ _id: first._id }), 1);
+});
+
 // RU: Из двух конкурентных правок одной версии принять только одну.
 // EN: Accept only one of two concurrent edits based on the same revision.
 test('Параллельные правки одного матча обнаруживают конфликт версии', async () => {
@@ -361,23 +372,24 @@ test('Плей-офф: посев 1–4 и 2–3, серия пенальти, �
         [a, b, 1, 0], [a, c, 1, 0], [a, d, 1, 0],
         [b, c, 1, 0], [b, d, 1, 0], [c, d, 1, 0],
     ];
-    for (const [home, away, homeScore, awayScore] of fixtures) {
-        await matches.createMatch({ ...payload({ protocolComplete: false, events: [] }), homeTeam: String(home._id), awayTeam: String(away._id), homeScore, awayScore });
+    for (const [index, [home, away, homeScore, awayScore]] of fixtures.entries()) {
+        const date = new Date(Date.UTC(2026, 9, 17 + index)).toISOString().slice(0, 10);
+        await matches.createMatch({ ...payload({ protocolComplete: false, events: [], date }), homeTeam: String(home._id), awayTeam: String(away._id), homeScore, awayScore });
     }
     const ranked = (await Team.find().sort({ points: -1, goalDifference: -1, goalsFor: -1, name: 1, _id: 1 })).map(team => String(team._id));
     assert.deepEqual(ranked, [String(a._id), String(b._id), String(c._id), String(d._id)]);
-    const semiOnePayload = { ...payload({ status: STATUS.SCHEDULED, homeScore: 0, awayScore: 0, protocolComplete: false, events: [] }), homeTeam: String(a._id), awayTeam: String(d._id), stage: STAGE.SEMIFINAL };
+    const semiOnePayload = { ...payload({ status: STATUS.SCHEDULED, homeScore: 0, awayScore: 0, protocolComplete: false, events: [], date: '2026-10-24', time: '16:00' }), homeTeam: String(a._id), awayTeam: String(d._id), stage: STAGE.SEMIFINAL };
     await assert.rejects(() => matches.createMatch({ ...semiOnePayload, awayTeam: String(c._id) }), { code: 'INVALID_SEMIFINAL_PAIRING' });
     const semiOne = await matches.createMatch(semiOnePayload);
-    const semiTwo = await matches.createMatch({ ...semiOnePayload, homeTeam: String(b._id), awayTeam: String(c._id), time: '19:00' });
+    const semiTwo = await matches.createMatch({ ...semiOnePayload, homeTeam: String(b._id), awayTeam: String(c._id), time: '18:00' });
     await assert.rejects(() => matches.createMatch({ ...payload({ status: STATUS.SCHEDULED, homeScore: 0, awayScore: 0, protocolComplete: false, events: [] }), homeTeam: String(c._id), awayTeam: String(d._id), stage: STAGE.LEAGUE, time: '20:00' }), { code: 'LEAGUE_LOCKED_BY_PLAYOFF' });
     const semiOneDone = await matches.updateMatch(String(semiOne._id), { ...semiOnePayload, version: semiOne.__v, status: STATUS.FINISHED, homeScore: 1, awayScore: 1, homePenaltyScore: 4, awayPenaltyScore: 3 });
-    const semiTwoDone = await matches.updateMatch(String(semiTwo._id), { ...semiOnePayload, version: semiTwo.__v, homeTeam: String(b._id), awayTeam: String(c._id), status: STATUS.FINISHED, homeScore: 1, awayScore: 0 });
+    const semiTwoDone = await matches.updateMatch(String(semiTwo._id), { ...semiOnePayload, time: '18:00', version: semiTwo.__v, homeTeam: String(b._id), awayTeam: String(c._id), status: STATUS.FINISHED, homeScore: 1, awayScore: 0 });
     assert.equal((await Team.findById(a._id)).points, 9, 'playoff wins do not change league points');
     const finalTeams = [String(a._id), String(b._id)];
-    const final = await matches.createMatch({ ...semiOnePayload, homeTeam: finalTeams[0], awayTeam: finalTeams[1], stage: STAGE.FINAL, time: '20:00' });
-    await assert.rejects(() => matches.updateMatch(String(final._id), { ...semiOnePayload, version: final.__v, stage: STAGE.FINAL, homeTeam: String(c._id), awayTeam: String(d._id) }), { code: 'INVALID_PLAYOFF_FINALISTS' });
+    const final = await matches.createMatch({ ...semiOnePayload, homeTeam: finalTeams[0], awayTeam: finalTeams[1], stage: STAGE.FINAL, date: '2026-10-31', time: '16:00' });
+    await assert.rejects(() => matches.updateMatch(String(final._id), { ...semiOnePayload, date: '2026-10-31', time: '20:00', version: final.__v, stage: STAGE.FINAL, homeTeam: String(c._id), awayTeam: String(d._id) }), { code: 'INVALID_PLAYOFF_FINALISTS' });
     const losers = [String(d._id), String(c._id)];
-    const third = await matches.createMatch({ ...semiOnePayload, homeTeam: losers[0], awayTeam: losers[1], stage: STAGE.THIRD_PLACE, time: '21:00' });
+    const third = await matches.createMatch({ ...semiOnePayload, homeTeam: losers[0], awayTeam: losers[1], stage: STAGE.THIRD_PLACE, date: '2026-10-31', time: '18:00' });
     assert.ok(semiOneDone && semiTwoDone && third);
 });

@@ -49,6 +49,16 @@ router.post('/mine/:id/messages', limiter, async (req, res, next) => {
 router.get('/admin', authenticate, requireAdmin, async (req, res, next) => {
     try { res.set('Cache-Control', 'no-store'); res.json({ success: true, data: await Conversation.find().sort({ updatedAt: -1 }).limit(100).lean() }); } catch (e) { next(e); }
 });
+// RU: Отметить обращение прочитанным администратором.
+// EN: Mark a conversation as read by the administrator.
+router.post('/admin/:id/read', authenticate, requireAdmin, async (req, res, next) => {
+    try {
+        const id = objectId(req.params.id);
+        const item = await Conversation.findByIdAndUpdate(id, { $set: { unreadAdmin: false } }, { new: true });
+        if (!item) throw new AppError(404, 'Обращение не найдено.', 'CONVERSATION_NOT_FOUND');
+        res.json({ success: true, data: item });
+    } catch (e) { next(e); }
+});
 router.post('/admin/:id/messages', authenticate, requireAdmin, async (req, res, next) => {
     try {
         const id = objectId(req.params.id), text = message(req.body);

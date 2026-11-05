@@ -75,15 +75,19 @@ async function validateMatch(match, session) {
     const teams = await Team.find({ _id: { $in: [match.homeTeam, match.awayTeam] } }).session(session).select('_id');
     if (teams.length !== 2) throw new AppError(400, 'Одна из выбранных команд не существует.', 'INVALID_TEAMS');
     if (match.tournament) { const tournament = await Tournament.findById(match.tournament).session(session); if (!tournament || ![match.homeTeam, match.awayTeam].every(id => tournament.teams.some(team => String(team) === String(id)))) throw new AppError(400, 'Выберите команды турнира.', 'INVALID_TEAMS'); }
-    if (match.tournament && normalizeStatus(match.status) !== STATUS.CANCELLED) {
+    if (normalizeStatus(match.status) !== STATUS.CANCELLED) {
         const start = new Date(startsAt(match.date, match.time, match.timeZone)).getTime();
         if (Number.isFinite(start)) {
+            const stadiumPattern = String(match.stadium || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const others = await Match.find({ _id: { $ne: match._id }, status: { $nin: [STATUS.CANCELLED, 'cancelled'] }, $or: [
-                { homeTeam: { $in: [match.homeTeam, match.awayTeam] } }, { awayTeam: { $in: [match.homeTeam, match.awayTeam] } }, { stadium: match.stadium },
+                { homeTeam: { $in: [match.homeTeam, match.awayTeam] } }, { awayTeam: { $in: [match.homeTeam, match.awayTeam] } },
+                ...(stadiumPattern ? [{ stadium: { $regex: `^${stadiumPattern}$`, $options: 'i' } }] : []),
             ] }).session(session).lean();
             const conflict = others.some(other => {
                 const otherStart = new Date(startsAt(other.date, other.time, other.timeZone)).getTime();
-                return start < otherStart + (other.duration || 90) * 60000 && otherStart < start + (match.duration || 90) * 60000;
+                const sameTeam = [String(match.homeTeam), String(match.awayTeam)].some(id => [String(other.homeTeam), String(other.awayTeam)].includes(id));
+                const sameStadium = String(match.stadium || '').toLocaleLowerCase() === String(other.stadium || '').toLocaleLowerCase();
+                return (sameTeam || sameStadium) && start < otherStart + (other.duration || 90) * 60000 && otherStart < start + (match.duration || 90) * 60000;
             });
             if (conflict) throw new AppError(409, 'Время пересекается с другим матчем команды или стадиона.', 'SCHEDULE_CONFLICT');
         }

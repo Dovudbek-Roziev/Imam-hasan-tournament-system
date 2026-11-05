@@ -29,6 +29,9 @@ test('private conversations are visible only to their owner and an authenticated
         assert.equal((await fetch(`${base}/admin`)).status, 401);
         assert.equal((await fetch(`${base}/admin/${item._id}/messages`, { method: 'POST', headers: a, body: JSON.stringify({ text: 'bad' }) })).status, 401);
         assert.equal((await fetch(`${base}/admin/${item._id}/messages`, { method: 'POST', headers: adm, body: JSON.stringify({ text: 'Answer' }) })).status, 200);
+        const unread = await fetch(`${base}/admin/${item._id}/read`, { method: 'POST', headers: adm });
+        assert.equal(unread.status, 200);
+        assert.equal((await unread.json()).data.unreadAdmin, false);
         const mine = (await (await fetch(`${base}/mine`, { headers: a })).json()).data;
         assert.deepEqual(mine[0].messages.map(x => x.text), ['Question', 'Answer']);
         assert.equal(mine[0].unreadVisitor, true);

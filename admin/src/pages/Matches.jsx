@@ -52,7 +52,7 @@ export default function Matches() {
   const [removing, setRemoving] = useState(null);
   const [notice, setNotice] = useState('');
   const closeEdit = useCallback(() => setEditing(null), []);
-  const closeRemove = useCallback(() => setRemoving(null), []);
+  const closeRemove = useCallback(() => setRemoving(null), [setRemoving]);
   const roster = useMemo(() => new Map(players.data.map((player) => [player._id, player])), [players.data]);
 
   // RU: Подготовить матч и его события к редактированию в форме.
