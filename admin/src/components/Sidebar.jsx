@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, UserRound, Trophy, Newspaper, X, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Users, UserRound, Trophy, Newspaper, X, ShieldCheck, MessageCircle } from 'lucide-react';
 import { useLanguage } from '../i18n';
 
 const links = [
@@ -8,6 +8,7 @@ const links = [
   { name: 'Команды', path: '/teams', icon: Users },
   { name: 'Игроки', path: '/players', icon: UserRound },
   { name: 'Матчи', path: '/matches', icon: Trophy },
+  { name: 'Сообщения', path: '/messages', icon: MessageCircle },
   { name: 'Новости', path: '/news', icon: Newspaper },
 ];
 

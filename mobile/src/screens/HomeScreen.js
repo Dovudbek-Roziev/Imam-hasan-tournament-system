@@ -27,7 +27,7 @@ async function loadHome(signal) {
 
 // RU: Показать приветствие, ближайшую игру, обратный отсчёт и объявления турнира.
 // EN: Show the welcome section, next fixture, countdown, and tournament announcements.
-export default function HomeScreen() {
+export default function HomeScreen({ navigation }) {
     const { locale, language, t } = useLanguage();
     const { data, loading, refreshing, error, refresh } = useApiData(loadHome, { upcoming: [], news: [] });
     const [selectedNews, setSelectedNews] = useState(null);
@@ -80,6 +80,7 @@ export default function HomeScreen() {
                     <ArrowRight size={16} color={COLORS.textSecondary} />
                 </Pressable>
             ))}
+            <Pressable accessibilityRole="button" style={styles.contactButton} onPress={() => navigation.navigate('Messages')}><Text style={styles.contactText}>{t('Написать администратору')} →</Text></Pressable>
             <View style={styles.guide}>
                 <Text style={styles.guideTitle}>{t('Как пользоваться приложением')}</Text>
                 <Text style={styles.guideText}>{t('Матчи — расписание и протоколы встреч')}</Text>
@@ -102,6 +103,8 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+    contactButton: { backgroundColor: COLORS.primary, borderRadius: 14, padding: 16, marginBottom: 18 },
+    contactText: { color: '#fff', fontWeight: '800', textAlign: 'center' },
     newsBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(20,30,24,.38)' },
     newsSheet: { maxHeight: '88%', backgroundColor: COLORS.background, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20 },
     newsClose: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },

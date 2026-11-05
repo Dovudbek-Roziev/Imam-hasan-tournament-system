@@ -9,6 +9,7 @@ import TableScreen from '../screens/TableScreen';
 import MatchesScreen from '../screens/MatchesScreen';
 import StatsScreen from '../screens/StatsScreen';
 import DeveloperScreen from '../screens/DeveloperScreen';
+import MessagesScreen from '../screens/MessagesScreen';
 import { useLanguage } from '../i18n';
 
 const Tab = createBottomTabNavigator();
@@ -74,6 +75,7 @@ export default function AppNavigator() {
                     tabBarIcon: ({ color, size }) => <BarChart2 color={color} size={size} />
                 }}
             />
+            <Tab.Screen name="Messages" component={MessagesScreen} options={{ tabBarButton: () => null }} />
             <Tab.Screen
                 name="Developer"
                 component={DeveloperScreen}
@@ -85,3 +87,4 @@ export default function AppNavigator() {
         </Tab.Navigator>
     );
 }
+

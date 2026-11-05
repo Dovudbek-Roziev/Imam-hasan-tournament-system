@@ -71,7 +71,7 @@ function createApp(config, options = {}) {
             return callback(new AppError(403, 'Запросы с этого сайта не разрешены.', 'ORIGIN_NOT_ALLOWED'));
         },
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'Accept-Language'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Accept-Language', 'X-Conversation-Token'],
         exposedHeaders: ['X-Request-Id'],
         maxAge: 600,
     }));
@@ -94,6 +94,8 @@ function createApp(config, options = {}) {
     app.use('/api/matches', matchRoutes);
     app.use('/api/schedule', require('./routes/scheduleRoutes'));
     app.use('/api/tournaments', require('./routes/tournamentRoutes'));
+    app.use('/api/conversations', require('./routes/conversationRoutes'));
+
     app.use('/api/news', newsRoutes);
     app.use('/api/media', mediaRoutes);
     app.use('/api/stats', statsRoutes);
