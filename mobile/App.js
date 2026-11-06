@@ -17,7 +17,9 @@ export default function App() {
         <StatusBar style="light" backgroundColor={COLORS.primary} translucent={false} />
         <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: COLORS.primary }}>
           <TournamentPicker onSelect={setTournament} />
-          <AppNavigator key={tournament} />
+          <SafeAreaView edges={['bottom']} style={{ flex: 1, backgroundColor: COLORS.background }}>
+            <AppNavigator key={tournament} />
+          </SafeAreaView>
         </SafeAreaView>
       </NavigationContainer>
     </SafeAreaProvider></LanguageProvider>

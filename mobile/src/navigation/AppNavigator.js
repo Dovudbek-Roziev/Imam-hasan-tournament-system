@@ -2,7 +2,6 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Home, Trophy, CalendarDays, BarChart2, CodeXml } from 'lucide-react-native';
 import { COLORS } from '../constants/theme';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import HomeScreen from '../screens/HomeScreen';
 import TableScreen from '../screens/TableScreen';
@@ -17,10 +16,10 @@ const Tab = createBottomTabNavigator();
 // RU: Настроить русские нижние вкладки и светлую тему приложения.
 // EN: Configure Russian bottom tabs and the app's light theme.
 export default function AppNavigator() {
-    const insets = useSafeAreaInsets();
     const { t } = useLanguage();
     return (
         <Tab.Navigator
+            safeAreaInsets={{ bottom: 0 }}
             screenOptions={{
                 headerShown: false,
                 headerStyle: { backgroundColor: COLORS.background },
@@ -35,9 +34,9 @@ export default function AppNavigator() {
                 tabBarStyle: {
                     backgroundColor: COLORS.background,
                     borderTopColor: COLORS.border,
-                    height: 56 + Math.max(insets.bottom, 6),
+                    height: 66,
                     paddingTop: 6,
-                    paddingBottom: Math.max(insets.bottom, 6),
+                    paddingBottom: 6,
                 },
                 tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
                 sceneStyle: { backgroundColor: COLORS.background },
@@ -75,7 +74,7 @@ export default function AppNavigator() {
                     tabBarIcon: ({ color, size }) => <BarChart2 color={color} size={size} />
                 }}
             />
-            <Tab.Screen name="Messages" component={MessagesScreen} options={{ tabBarButton: () => null }} />
+            <Tab.Screen name="Messages" component={MessagesScreen} options={{ tabBarButton: () => null, tabBarItemStyle: { display: 'none' } }} />
             <Tab.Screen
                 name="Developer"
                 component={DeveloperScreen}

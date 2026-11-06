@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MapPin, X } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/theme';
 import api from '../api/axios';
 import DataState from './DataState';
@@ -12,6 +13,7 @@ import { getGoalCreditedTeamName } from '../utils/matchEvents';
 // EN: Load a match's full protocol and show it in a mobile details sheet.
 export default function MatchDetailsModal({ match, onClose }) {
     const { t, locale } = useLanguage();
+    const insets = useSafeAreaInsets();
     const [details, setDetails] = useState(match || {});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -36,7 +38,7 @@ export default function MatchDetailsModal({ match, onClose }) {
     }, [match._id, attempt, t]);
 
     return <Modal visible animationType="slide" transparent onRequestClose={onClose}>
-        <View style={styles.backdrop}><View style={styles.sheet}>
+        <View style={styles.backdrop}><View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 14) + 14 }]}>
             <View style={styles.header}><View><Text style={styles.kicker}>{t('ПРОТОКОЛ МАТЧА')}</Text><Text style={styles.title}>{t('Детали встречи')}</Text></View><Pressable accessibilityRole="button" accessibilityLabel={t('Закрыть детали матча')} style={styles.close} onPress={onClose}><X size={20} color={COLORS.textPrimary} /></Pressable></View>
             <ScrollView contentContainerStyle={styles.body}>
                 <Text style={styles.date}>{formatKickoff(details.startsAt || details.date, true, locale)}</Text>

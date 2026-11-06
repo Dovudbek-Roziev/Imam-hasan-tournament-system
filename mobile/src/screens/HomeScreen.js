@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ArrowRight, CalendarDays, MapPin, Newspaper, X } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/theme';
 import api from '../api/axios';
 import { readDataArray, loadAllRecords } from '../api/response';
@@ -29,6 +30,7 @@ async function loadHome(signal) {
 // EN: Show the welcome section, next fixture, countdown, and tournament announcements.
 export default function HomeScreen({ navigation }) {
     const { locale, language, t } = useLanguage();
+    const insets = useSafeAreaInsets();
     const { data, loading, refreshing, error, refresh } = useApiData(loadHome, { upcoming: [], news: [] });
     const [selectedNews, setSelectedNews] = useState(null);
     const [now, setNow] = useState(Date.now());
@@ -90,7 +92,7 @@ export default function HomeScreen({ navigation }) {
             </View>
         </ScrollView>
         <Modal visible={Boolean(selectedNews)} animationType="slide" transparent onRequestClose={() => setSelectedNews(null)}>
-            <View style={styles.newsBackdrop}><View style={styles.newsSheet}>
+            <View style={styles.newsBackdrop}><View style={[styles.newsSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
                 <View style={styles.sectionHeading}><Text style={styles.sectionTitle}>{t('Новости турнира')}</Text><Pressable accessibilityRole="button" accessibilityLabel={t('Закрыть новость')} onPress={() => setSelectedNews(null)} style={styles.newsClose}><X size={22} color={COLORS.textPrimary} /></Pressable></View>
                 <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
                     <Text style={styles.newsTitle}>{language === 'ky' ? selectedNews?.titleKy || selectedNews?.title : selectedNews?.title}</Text>

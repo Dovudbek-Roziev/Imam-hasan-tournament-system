@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Shield, X } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/theme';
 import { loadAllRecords } from '../api/response';
 import api from '../api/axios';
@@ -14,6 +15,7 @@ import PlayerAvatar from './PlayerAvatar';
 // EN: Load a team's roster and show its tournament standings.
 export default function TeamDetailsModal({ team, onClose }) {
     const { t } = useLanguage();
+    const insets = useSafeAreaInsets();
     const [players, setPlayers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -33,7 +35,7 @@ export default function TeamDetailsModal({ team, onClose }) {
     }, [team._id, attempt, t]);
 
     return <Modal visible animationType="slide" transparent onRequestClose={onClose}>
-        <View style={styles.backdrop}><View style={styles.sheet}>
+        <View style={styles.backdrop}><View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 14) + 14 }]}>
             <View style={styles.header}><View><Text style={styles.kicker}>{t('УЧАСТНИК ТУРНИРА')}</Text><Text style={styles.title}>{team.name}</Text></View><Pressable accessibilityRole="button" accessibilityLabel={t('Закрыть состав команды')} style={styles.close} onPress={onClose}><X size={20} color={COLORS.textPrimary} /></Pressable></View>
             <ScrollView contentContainerStyle={styles.body}>
                 <View style={styles.stats}><View><Text style={styles.statValue}>{team.points}</Text><Text style={styles.statLabel}>{t('очков')}</Text></View><View><Text style={styles.statValue}>{team.played}</Text><Text style={styles.statLabel}>{t('матчей')}</Text></View><View><Text style={styles.statValue}>{team.goalDifference > 0 ? `+${team.goalDifference}` : team.goalDifference}</Text><Text style={styles.statLabel}>{t('разница')}</Text></View></View>
